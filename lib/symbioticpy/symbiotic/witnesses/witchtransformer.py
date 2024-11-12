@@ -86,7 +86,7 @@ class ValidationTransformer:
                 assert map is not None, 'Unknown waypoint type:' + waypoint['type']
 
                 map[(line, col)] = None
-        
+
         assert self._target, "Missing target waypoint!"
 
     # Traverse the AST, find the locations mentioned in the witness and store information
@@ -151,7 +151,7 @@ class ValidationTransformer:
                         (start.line, start.column), (child.extent.end.line, child.extent.end.column)
 
             child_index += 1
-            self.traverse_AST(child, full and not child.kind.is_expression()) 
+            self.traverse_AST(child, full and not child.kind.is_expression())
 
     def _handle_ternary(self, node):
         children = list(node.get_children())
@@ -186,9 +186,25 @@ class ValidationTransformer:
             self._add_branchinfo(col, loc, ctrl_expr.extent)
 
         if node.kind == clang.cindex.CursorKind.FOR_STMT:
-            extent = children[1].extent
+            # In statements like: for (;;i++) {body} we only have 2 children (no null statements) and
+            # no information about which 2 children it is. This is why there is this horrible
+            # workaround.
+            if len(children) != 4:
+                _, _, first, second, *rest = node.get_tokens()
+                if first.spelling == ';':
+                    if len(children) <= 2 and second.spelling == ';':
+                        extent = second.extent
+                        self._branchings[loc] = (extent.start.line, extent.start.column), \
+                                                (extent.end.line, extent.end.column - 2), \
+                                                col
+                        return
+                    extent = children[0].extent
+
+            else:
+                extent = children[1].extent
+
             self._branchings[loc] = (extent.start.line, extent.start.column), \
-                                    (extent.end.line, extent.end.column -1), \
+                                    (extent.end.line, extent.end.column - 1), \
                                     col
 
         if node.kind == clang.cindex.CursorKind.SWITCH_STMT:
@@ -236,7 +252,7 @@ class ValidationTransformer:
                 if waypoint['type'] == 'target':
                     if self._target[line, col] is None:
                         sys.exit('Invalid location for target: {},{}'.format(line, col))
- 
+
                     waypoint['location']['column'] = self._target[line, col][0][1]
                     waypoint['location2'] = {}
                     waypoint['location2']['line'], waypoint['location2']['column'] = self._target[line, col][1]
@@ -264,7 +280,7 @@ class ValidationTransformer:
                         fun = '__VALIDATOR_switch'
                     else:
                         sys.exit('Invalid location for branching: {},{}'.format(line, col))
-                    
+
                     if col == 0:
                         waypoint['location']['column'] = column
 
@@ -272,7 +288,10 @@ class ValidationTransformer:
                     if loc not in conditions_covered:
                         self._insert.append((ctrl_expr_start[0], ctrl_expr_start[1],
                                              fun + '(' + str(line) + ', ' + str(column) + ', '))
-                        self._insert.append((ctrl_expr_end[0], ctrl_expr_end[1] + 1, ')'))
+                        if ctrl_expr_start > ctrl_expr_end:
+                            self._insert.append((ctrl_expr_end[0], ctrl_expr_end[1] + 1, '1)'))
+                        else:
+                            self._insert.append((ctrl_expr_end[0], ctrl_expr_end[1] + 1, ')'))
                         conditions_covered.add(loc)
 
             s_index += 1
@@ -379,4 +398,3 @@ def is_statement(parent, child_index, child):
         return True
 
     return False
-
