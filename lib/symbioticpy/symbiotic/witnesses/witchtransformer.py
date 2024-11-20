@@ -95,7 +95,7 @@ class ValidationTransformer:
         # Recurse for children of this node
         child_index = 0
         for child in node.get_children():
-            if child.location.file.name != self.program_file:
+            if not child.location.file or child.location.file.name != self.program_file:
                 continue
 
             start = child.extent.start
