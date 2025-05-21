@@ -11,6 +11,9 @@ class ValidationTransformer:
         self.out_program = out_program
         self.out_witness = out_witness
 
+        self.first_decl = None      # line number of the first declaration
+
+
         with open(self.witness_file, 'r') as file:
             self.witness = yaml.safe_load(file)
 
@@ -87,7 +90,7 @@ class ValidationTransformer:
 
                 map[(line, col)] = None
 
-        assert self._target, "Missing target waypoint!"
+        #assert self._target, "Missing target waypoint!"
 
     # Traverse the AST, find the locations mentioned in the witness and store information
     # about them in one of: _calls, _assumptions, _branchings, _target.
@@ -100,6 +103,9 @@ class ValidationTransformer:
 
             start = child.extent.start
             end = child.extent.end
+
+            if not self.first_decl:
+                self.first_decl = child.extent.start.line
 
             # For all function calls and returns, we change the location
             # from the right paranthesis to the position of the call.
@@ -259,7 +265,7 @@ class ValidationTransformer:
 
                 if waypoint['type'] == 'assumption':
                     if not self._assumptions[line, col]:
-                        sys.exit('Invalid location for branching: {},{}'.format(line, col))
+                        sys.exit('Invalid location for assumption: {},{}'.format(line, col))
 
                     start, end, bracket = self._assumptions[line, col]
 
@@ -267,7 +273,7 @@ class ValidationTransformer:
                         self._insert.append((end[0], end[1] + 1, ';}'))
 
                     call = create_assumption(waypoint['constraint']['value'],
-                                             s_index, waypoint['action'] == 'follow', bracket)
+                                             s_index, waypoint['action'] != 'avoid', bracket)
                     self._insert.append((start[0], start[1], call))
 
                 if waypoint['type'] == 'branching':
@@ -296,8 +302,17 @@ class ValidationTransformer:
 
             s_index += 1
 
+        add_lines = 0
+        if self.program_file.endswith('.i'):
+            line = self.first_decl if self.first_decl else 1
+            self._insert.append((line, 1, 'extern int __VALIDATOR_branch(int c);' +
+                                          'extern void __VALIDATOR_assume(int c, int f);' +
+                                          'extern int __VALIDATOR_segment(unsigned int s);' +
+                                          'extern int __VALIDATOR_switch(int c);\n'))
+            add_lines = 1;
+
         self._insert_calls()
-        self.witness[0]['content'] = self._shift_witness(content)
+        self.witness[0]['content'] = self._shift_witness(content, add_lines)
 
         with open(self.out_witness, 'w') as witness_file2:
             yaml.dump(self.witness, witness_file2, default_style=None)
@@ -323,7 +338,7 @@ class ValidationTransformer:
 
     # After we inserted some calls into the C code, some statements described in the witness
     # have changed locations, and we need to adjust it.
-    def _shift_witness(self, content):
+    def _shift_witness(self, content, add_lines):
         for s in content:
             segment = s['segment']
             for w in segment:
@@ -331,6 +346,7 @@ class ValidationTransformer:
 
                 # We do not care about these locations anymore
                 if waypoint['type'] == 'assumption' or waypoint['type'] == 'branching':
+                    waypoint['location']['line'] += add_lines
                     continue
 
                 if waypoint['location']['line'] in self._shift.keys():
@@ -339,6 +355,7 @@ class ValidationTransformer:
                         if waypoint['location']['column'] >= col:
                             add += self._shift[waypoint['location']['line']][col]
                     waypoint['location']['column'] += add
+                waypoint['location']['line'] += add_lines
 
         # Shift end location of target
         target = content[-1]['segment'][-1]['waypoint']
@@ -388,7 +405,7 @@ def is_statement(parent, child_index, child):
         or parent.kind == types.SWITCH_STMT
         or parent.kind == types.FOR_STMT
         or parent.kind == types.CASE_STMT) and \
-            child_index == len(parent.get_children()) - 1:
+            child_index == len(list(parent.get_children())) - 1:
         return True
 
     if parent.kind == types.IF_STMT and child_index != 0:

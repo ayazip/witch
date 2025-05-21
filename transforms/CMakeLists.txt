@@ -92,6 +92,7 @@ add_library(LLVMsbt MODULE "AInliner.cpp"
                            "ReplaceUBSan.cpp"
                            "ReplaceVerifierAtomic.cpp"
                            "Unrolling.cpp"
+                           "WitchInstrumentNontermination.cpp"
 )
 
 # remove lib prefix for compatibility with older releases

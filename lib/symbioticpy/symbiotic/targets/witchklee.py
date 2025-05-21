@@ -122,6 +122,8 @@ class SymbioticTool(KleeBase):
                     return result.RESULT_FALSE_MEMCLEANUP
                 if b'no-overflow' in line:
                     return result.RESULT_FALSE_OVERFLOW
+                if b'termination' in line:
+                    return result.RESULT_FALSE_TERMINATION
             if b'may not be confirmed' in line:
                 unknown = True
         if returncode != 0:
@@ -159,3 +161,25 @@ class SymbioticTool(KleeBase):
                         '{0}/llvm-{1}/witch-klee/lib/klee/runtime'.\
                         format(prefix, self.llvm_version()))
 
+    def passes_after_slicing(self):
+        passes = []
+
+        # make the uninitialized variables symbolic (if desired)
+        if not self._options.explicit_symbolic:
+            passes.append('-initialize-uninitialized')
+
+        # make external globals non-deterministic
+        if not self._options.sv_comp:
+            passes.append('-internalize-globals')
+
+        # for the memsafety property, make functions behave like they have
+        # side-effects, because LLVM optimizations could remove them otherwise,
+        # even though they contain calls to assert
+        if self._options.property.memsafety():
+            passes.append('-remove-readonly-attr')
+
+        elif self._options.property.termination():
+            passes.append('-witch-instrument-nontermination')
+            passes.append('-instrument-nontermination-mark-header')
+
+        return passes
