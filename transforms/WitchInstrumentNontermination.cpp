@@ -61,6 +61,9 @@ class WitchInstrumentNontermination : public LoopPass {
   Function *_assert{nullptr};
   Function *_fail{nullptr};
   Function *_header{nullptr};
+  Function *_store{nullptr};
+  Function *_nondet{nullptr};
+
 
   Function *getHeaderFun(Module *M) {
     if (!_header) {
@@ -79,6 +82,41 @@ class WitchInstrumentNontermination : public LoopPass {
     }
     return _header;
   }
+
+  Function *getStoreFun(Module *M) {
+      if (!_store) {
+          auto& Ctx = M->getContext();
+          auto F = M->getOrInsertFunction("__INSTR_store",
+                                          Type::getVoidTy(Ctx) // retval
+                                          );
+          _store = cast<Function>(F.getCallee()->stripPointerCasts());
+      }
+      return _store;
+  }
+
+  Function *getNondetStore(Module *M) {
+      if (!_nondet) {
+          auto& Ctx = M->getContext();
+          auto F = M->getOrInsertFunction("__INSTR_nondet_store",
+                                          Type::getInt1Ty(Ctx) // retval
+                                          );
+          _nondet = cast<Function>(F.getCallee()->stripPointerCasts());
+      }
+      return _nondet;
+  }
+
+  Function *getAssert(Module *M) {
+      if (!_assert) {
+          auto& Ctx = M->getContext();
+          auto F = M->getOrInsertFunction("__INSTR_check_nontermination",
+                                          Type::getVoidTy(Ctx), // retval
+                                          Type::getInt1Ty(Ctx)  // condition
+                                          );
+          _assert = cast<Function>(F.getCallee()->stripPointerCasts());
+      }
+      return _assert;
+  }
+
 
   public:
     static char ID;
@@ -111,7 +149,9 @@ bool WitchInstrumentNontermination::checkFunction(Function *F,
       F->getName().startswith("_exit") ||
       F->getName().startswith("abort") ||
       F->getName().startswith("klee_silent_exit") ||
-      F->getName().startswith("llvm.dbg."))
+      F->getName().startswith("llvm.dbg.") ||
+      F->getName().startswith("__VALIDATOR") ||
+      F->getName().equals("__INSTR_store"))
     return true;
 
   for (auto *onstack : callstack) {
@@ -185,6 +225,17 @@ bool WitchInstrumentNontermination::instrumentLoop(Loop *L, const std::set<llvm:
   auto *header = L->getHeader();
   assert(header);
   auto *M = header->getModule();
+  LLVMContext& Ctx = M->getContext();
+
+  // Remeber the original predecessors of the header
+  std::vector<std::pair<BasicBlock *, unsigned>> to_change;
+  for (auto I = pred_begin(header), E = pred_end(header); I != E; ++I) {
+      auto TI = (*I)->getTerminator();
+      for (int i = 0, e = TI->getNumSuccessors(); i < e; ++i) {
+          if (TI->getSuccessor(i) == header)
+              to_change.emplace_back(*I, i);
+      }
+  }
 
   // mapping of old to new ones
   std::map<Value *, Value *> mapping;
@@ -203,9 +254,7 @@ bool WitchInstrumentNontermination::instrumentLoop(Loop *L, const std::set<llvm:
         // is going to be inserted at the beginning of the header
         newVal = new AllocaInst(
             G->getType()->getContainedType(0),
-#if (LLVM_VERSION_MAJOR >= 5)
             G->getType()->getAddressSpace(),
-#endif
             nullptr,
             "",
             // put the alloca on the beginning of the function
@@ -223,46 +272,51 @@ bool WitchInstrumentNontermination::instrumentLoop(Loop *L, const std::set<llvm:
       return instrumentEmptyLoop(L);
   }
 
+  // Create a new BB, where we call __INSTR_store and decide whether
+  // to save the current values
+  BasicBlock *decideStore = BasicBlock::Create(Ctx, "decide.store");
+  BasicBlock *storeBlock = BasicBlock::Create(Ctx, "store.values");
+
+  // insert the new blocks before header
+  storeBlock->insertInto(header->getParent(), header);
+  decideStore->insertInto(header->getParent(), storeBlock);
+
+  auto *nondetStore = CallInst::Create(getNondetStore(M));
+  decideStore->getInstList().push_back(nondetStore);
+
+  BranchInst::Create(storeBlock, header, nondetStore, decideStore);
+
   // store the state of variables at the loop head
+  auto *storeFun = CallInst::Create(getStoreFun(M));
+  storeBlock->getInstList().push_back(storeFun);
+
   for (auto& it : mapping) {
     auto *LI = new LoadInst(
         it.first->getType()->getPointerElementType(),
         it.first,
         "",
-#if LLVM_VERSION_MAJOR >= 11
         false,
         M->getDataLayout().getABITypeAlign(it.first->getType()),
-#endif
         static_cast<Instruction*>(nullptr));
+
     auto *SI = new StoreInst(LI,
         it.second,
         false,
-#if LLVM_VERSION_MAJOR >= 11
         LI->getAlign(),
-#endif
         static_cast<Instruction*>(nullptr));
 
-    CloneMetadata(header->getTerminator(), LI);
-    CloneMetadata(header->getTerminator(), SI);
+    storeBlock->getInstList().push_back(LI);
+    storeBlock->getInstList().push_back(SI);
+  }
 
-    auto where = header->getFirstNonPHIOrDbg();
-    assert(where);
+  BranchInst::Create(header, storeBlock);
 
-    if (where == header->getTerminator()) {
-      header->getInstList().push_front(SI);
-      header->getInstList().push_front(LI);
-    } else {
-      LI->insertAfter(where);
-      SI->insertAfter(LI);
-    }
-
-    if (insertHeader) {
-        auto *CI = CallInst::Create(getHeaderFun(M));
-        // copy the location from terminator, so that we have
-        // the right debug loc
-        CloneMetadata(where, CI);
-        CI->insertBefore(where);
-    }
+  if (insertHeader) {
+      auto *CI = CallInst::Create(getHeaderFun(M));
+      // copy the location from terminator, so that we have
+      // the right debug loc
+      CloneMetadata(decideStore->getFirstNonPHIOrDbg(), CI);
+      CI->insertBefore(decideStore->getFirstNonPHIOrDbg());
   }
 
   // compare the old and new values after the iteration of the loop
@@ -292,13 +346,10 @@ bool WitchInstrumentNontermination::instrumentLoop(Loop *L, const std::set<llvm:
           term);
       auto *cmp = new ICmpInst(ICmpInst::ICMP_EQ, newVal, oldVal);
 
-#if LLVM_VERSION_MAJOR > 7
       auto md = term->getPrevNonDebugInstruction();
       if (!md || !md->hasMetadata())
           md = term;
-#else
-      auto md = term;
-#endif
+
       CloneMetadata(md, newVal);
       CloneMetadata(md, oldVal);
       CloneMetadata(md, cmp);
@@ -316,33 +367,26 @@ bool WitchInstrumentNontermination::instrumentLoop(Loop *L, const std::set<llvm:
 
     assert(lastCond);
 
-    if (!_assert) {
-      auto M = header->getParent()->getParent();
-      auto& Ctx = M->getContext();
-      auto F = M->getOrInsertFunction("__INSTR_check_nontermination",
-                                      Type::getVoidTy(Ctx), // retval
-                                      Type::getInt1Ty(Ctx)  // condition
-#if LLVM_VERSION_MAJOR < 5
-                                      , nullptr
-#endif
-                                      );
-#if LLVM_VERSION_MAJOR >= 9
-      _assert = cast<Function>(F.getCallee()->stripPointerCasts());
-#else
-      _assert = cast<Function>(F);
-#endif
-    }
-
-
     // insert the assertion that all the values are the same
-    assert(_assert);
-    auto *CI = CallInst::Create(_assert, {lastCond});
+    auto *CI = CallInst::Create(getAssert(M), {lastCond});
     if (lastCond->hasMetadata())
       CloneMetadata(lastCond, CI);
     else
       CloneMetadata(term, CI);
     CI->insertBefore(term);
   }
+
+  // now change the jump instructions
+  for (auto& pr : to_change) {
+      auto TI = pr.first->getTerminator();
+      TI->setSuccessor(pr.second, decideStore);
+  }
+
+  L->addBlockEntry(decideStore);
+  L->addBlockEntry(storeBlock);
+
+  L->moveToHeader(decideStore);
+
 
   llvm::errs() << "Instrumented a loop with non-termination checks\n";
   return true;
@@ -357,70 +401,23 @@ bool WitchInstrumentNontermination::instrumentEmptyLoop(Loop *L) {
   // variables, we know it may not terminate even from
   // some call)
 
-  /* NOTE: this check is redundant:
-   * after all the check we did, this must be potentionally
-   * non-terminating. It may not be syntactically non-terminating,
-   * it can be something like:
-   *
-   * while(nondet_bool())
-   * {}
-   *
-   * But since it does not changes memory and calls
-   * only functions without side-effects (or nondet()),
-   * we know that there exist a cycle in the state space
-  std::set<BasicBlock *> visited;
-  visited.insert(header);
-  auto *cur = header;
-  do {
-    cur = cur->getUniqueSuccessor();
-    if (!cur) // no loop
-        return false;
-
-    assert(L->contains(cur));
-    if (!visited.insert(cur).second) {
-        // hit a cycle
-        break;
-    }
-  } while (true);
-  */
-
   // it is an infinite loop
   auto M = header->getParent()->getParent();
   auto& Ctx = M->getContext();
   if (!_fail) {
     auto F = M->getOrInsertFunction("__INSTR_infinite_loop",
                                     Type::getVoidTy(Ctx) // retval
-#if LLVM_VERSION_MAJOR < 5
-                                    , nullptr
-#endif
                                     );
-#if LLVM_VERSION_MAJOR >= 9
     _fail = cast<Function>(F.getCallee()->stripPointerCasts());
-#else
-    _fail = cast<Function>(F);
-#endif
-    _fail->setDoesNotReturn();
   }
 
-  assert(_fail);
-  for (auto I = pred_begin(header), E = pred_end(header); I != E; ++I) {
-    if (!L->contains(*I))
-      continue;
-    auto *term = (*I)->getTerminator();
-    auto *CI = CallInst::Create(_fail);
-    CloneMetadata(term, CI);
-    CI->insertBefore(term);
-  }
+  auto *CI = CallInst::Create(_fail);
+  CloneMetadata(header->getFirstNonPHIOrDbg(), CI);
+  CI->insertBefore(header->getFirstNonPHIOrDbg());
 
-  if (insertHeader) {
-      auto *CI = CallInst::Create(getHeaderFun(M));
-      // copy the location from header, so that we have
-      // the right debug loc
-      CloneMetadata(header->getFirstNonPHIOrDbg(), CI);
-      CI->insertBefore(header->getFirstNonPHIOrDbg());
-  }
 
-  llvm::errs() << "Instrumented an empty loop with abort.\n";
+
+  llvm::errs() << "Instrumented an empty loop.\n";
   return true;
 }
 
