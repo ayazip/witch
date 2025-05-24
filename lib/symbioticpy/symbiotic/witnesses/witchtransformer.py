@@ -196,6 +196,7 @@ class ValidationTransformer:
             # In statements like: for (;;i++) {body} we only have 2 children (no null statements) and
             # no information about which 2 children it is. This is why there is this horrible
             # workaround.
+            extent = children[1].extent
             if len(children) != 4:
                 _, _, first, second, *rest = node.get_tokens()
                 if first.spelling == ';':
@@ -206,9 +207,6 @@ class ValidationTransformer:
                                                 col
                         return
                     extent = children[0].extent
-
-            else:
-                extent = children[1].extent
 
             self._branchings[loc] = (extent.start.line, extent.start.column), \
                                     (extent.end.line, extent.end.column - 1), \
