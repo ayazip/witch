@@ -198,15 +198,17 @@ class ValidationTransformer:
             # workaround.
             extent = children[1].extent
             if len(children) != 4:
+
                 _, _, first, second, *rest = node.get_tokens()
                 if first.spelling == ';':
-                    if len(children) <= 2 and second.spelling == ';':
-                        extent = second.extent
-                        self._branchings[loc] = (extent.start.line, extent.start.column), \
-                                                (extent.end.line, extent.end.column - 2), \
-                                                col
-                        return
                     extent = children[0].extent
+
+                if second.spelling == ';':
+                    extent = second.extent
+                    self._branchings[loc] = (extent.start.line, extent.start.column), \
+                                            (extent.end.line, extent.end.column - 2), \
+                                            col
+                    return
 
             self._branchings[loc] = (extent.start.line, extent.start.column), \
                                     (extent.end.line, extent.end.column - 1), \
