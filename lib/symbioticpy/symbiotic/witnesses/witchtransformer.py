@@ -1,6 +1,7 @@
 import sys
 import clang.cindex
 import yaml
+from ..utils import err
 
 
 class ValidationTransformer:
@@ -36,12 +37,12 @@ class ValidationTransformer:
 
     def check_witness_structure(self):
         # basic syntax checks
-        assert len(self.witness) == 1, 'Multiple or missing entries in witness!'
-        assert 'content' in self.witness[0], 'Missing witness content!'
-        assert 'metadata' in self.witness[0], 'Missing witness metadata!'
-        assert 'entry_type' in self.witness[0], 'Missing witness entry_type!'
-        assert self.witness[0]['entry_type'] == 'violation_sequence', 'Invalid entry type!'
-        assert len(self.witness[0]['content']) >= 1, 'Invalid witness syntax!'
+        witch_assert(len(self.witness) == 1, 'Multiple or missing entries in witness!')
+        witch_assert('content' in self.witness[0], 'Missing witness content!')
+        witch_assert('metadata' in self.witness[0], 'Missing witness metadata!')
+        witch_assert('entry_type' in self.witness[0], 'Missing witness entry_type!')
+        witch_assert(self.witness[0]['entry_type'] == 'violation_sequence', 'Invalid entry type!')
+        witch_assert(len(self.witness[0]['content']) >= 1, 'Invalid witness syntax!')
 
     def _get_witness_locations(self):
         # collect relevant program locations and their types and check basic syntax
@@ -55,13 +56,13 @@ class ValidationTransformer:
                 assert 'waypoint' in w, 'Invalid witness syntax!'
                 waypoint = w['waypoint']
 
-                assert 'location' in waypoint.keys(), 'Missing waypoint location!'
-                assert 'file_name' in waypoint['location'].keys(), 'Missing filename in waypoint location!'
-                assert waypoint['location']['file_name'].split('/')[-1] == self.program_file.split('/')[-1], \
-                            'Filename in witness location does not match the program file'
-                assert 'line' in waypoint['location'].keys(), 'Missing line in waypoint location!'
-                assert 'type' in waypoint.keys(), 'Missing waypoint type!'
-                assert 'action' in waypoint.keys(), 'Missing waypoint action!'
+                witch_assert('location' in waypoint.keys(), 'Missing waypoint location!')
+                witch_assert('file_name' in waypoint['location'].keys(), 'Missing filename in waypoint location!')
+                witch_assert(waypoint['location']['file_name'].split('/')[-1] == self.program_file.split('/')[-1],
+                            'Filename in witness location does not match the program file')
+                witch_assert('line' in waypoint['location'].keys(), 'Missing line in waypoint location!')
+                witch_assert('type' in waypoint.keys(), 'Missing waypoint type!')
+                witch_assert('action' in waypoint.keys(), 'Missing waypoint action!')
 
                 if waypoint['action'] == 'follow':
                     assert w == segment[-1]
@@ -414,3 +415,8 @@ def is_statement(parent, child_index, child):
         return True
 
     return False
+
+
+def witch_assert(cond, message):
+    if not cond:
+        err(message)
