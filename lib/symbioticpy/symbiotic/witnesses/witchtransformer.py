@@ -305,10 +305,10 @@ class ValidationTransformer:
         add_lines = 0
         if self.program_file.endswith('.i'):
             line = self.first_decl if self.first_decl else 1
-            self._insert.append((line, 1, 'extern int __VALIDATOR_branch(int c);' +
+            self._insert.append((line, 1, 'extern int __VALIDATOR_branch(unsigned int l, unsigned int c, int expr);' +
                                           'extern void __VALIDATOR_assume(int c, int f);' +
                                           'extern int __VALIDATOR_segment(unsigned int s);' +
-                                          'extern int __VALIDATOR_switch(int c);\n'))
+                                          'extern int __VALIDATOR_switch(unsigned int l, unsigned int c, int expr);\n'))
             add_lines = 1;
 
         self._insert_calls()
@@ -346,7 +346,6 @@ class ValidationTransformer:
 
                 # We do not care about these locations anymore
                 if waypoint['type'] == 'assumption' or waypoint['type'] == 'branching':
-                    waypoint['location']['line'] += add_lines
                     continue
 
                 if waypoint['location']['line'] in self._shift.keys():
