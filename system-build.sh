@@ -246,7 +246,7 @@ check
 ######################################################################
 PHASE="setting up LLVM"
 
-test -z "$LLVM_CONFIG" && LLVM_CONFIG=$(which llvm-config || true)
+test -z "$LLVM_CONFIG" && LLVM_CONFIG=$(which llvm-config-14 || true)
 
 if [ ! -z $LLVM_CONFIG -a -x $LLVM_CONFIG ]; then
 	echo "Using llvm-config: $LLVM_CONFIG";

@@ -58,7 +58,7 @@ usage()
 	echo -e "OPTS = options for make (i. e. -j8)"
 }
 
-LLVM_VERSION_DEFAULT=10.0.1
+LLVM_VERSION_DEFAULT=14.0.0
 get_llvm_version()
 {
 	# check whether we have llvm already present
