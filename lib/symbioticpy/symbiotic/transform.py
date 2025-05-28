@@ -9,7 +9,7 @@ from . options import SymbioticOptions
 from . utils import dbg, print_elapsed_time, restart_counting_time
 from . utils.process import ProcessRunner, runcmd
 from . utils.watch import ProcessWatch, DbgWatch
-from . utils.utils import print_stdout, print_stderr, process_grep
+from . utils.utils import print_stdout, print_stderr, process_grep, err
 from . exceptions import SymbioticException
 from symbiotic.witnesses.witchtransformer import ValidationTransformer
 from shutil import move
@@ -744,7 +744,7 @@ class SymbioticCC(object):
 
         if self.options.witness_check:
             self.validation_preprocessing()
-            
+
 
         #################### #################### ###################
         # COMPILATION
@@ -919,15 +919,20 @@ class SymbioticCC(object):
         return self.curfile
 
     def validation_preprocessing(self):
+        if not os.path.isfile(self.sources[0]):
+            err("Program file " + self.sources[0] + " missing!")
+        if not os.path.isfile(self.options.witness_check_file):
+            err("Witness file " + self.options.witness_check_file + " missing!")
+
         print_stdout('INFO: Starting witness preprocessing', color='WHITE')
         assert len(self.sources) == 1
         program_transformed =  os.path.basename(self.sources[0])
         witness_transformed =  os.path.basename(self.options.witness_check_file)
         transformer = ValidationTransformer(self.sources[0], self.options.witness_check_file, program_transformed, witness_transformed)
         transformer.transform()
-        
+
         self.options.witness_check_file = witness_transformed
         self.sources = [program_transformed]
         print_stdout('INFO: Done witness preprocessing', color='WHITE')
-        return 
+        return
 
