@@ -1,7 +1,8 @@
-id=$(docker create symbiotic)
-docker cp $id:/opt/symbiotic/install .
+id=$(docker create witch)
+docker cp $id:/opt/witch/install .
 docker rm -v $id
 
-rm -rf symbiotic_build
-mv install symbiotic_build
-zip -r symbiotic symbiotic_build
+rm -rf witch
+mv install witch
+rm -rf witch/.git
+zip -r witch witch

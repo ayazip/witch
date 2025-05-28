@@ -2,12 +2,13 @@
 
 if [ ! -d witch-klee ]; then
 	git_clone_or_pull "https://github.com/ayazip/witch-klee" witch-klee
-	pushd witch-klee
-	if [  "x$UPDATE" = "x1" -o -z "$(ls -A $SRCDIR/klee)" ]; then
-		git_submodule_init
-	fi
-	popd
 fi
+
+pushd witch-klee
+if [  "x$UPDATE" = "x1" -o -z "$(ls -A $SRCDIR/klee/CMakeLists.txt)" ]; then
+	git_submodule_init
+fi
+popd
 
 
 mkdir -p witch-klee/build-${LLVM_VERSION}
