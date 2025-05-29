@@ -401,6 +401,9 @@ def is_statement(parent, child_index, child):
     if parent.kind == types.COMPOUND_STMT or child.kind.is_statement():
         return True
 
+    if parent.kind == types.LABEL_STMT:
+        return True
+
     if (parent.kind == types.WHILE_STMT
         or parent.kind == types.SWITCH_STMT
         or parent.kind == types.FOR_STMT
