@@ -8,7 +8,5 @@ int fgetc(FILE *f) {
 	// model failure
 	if (__symbiotic_nondet__Bool())
 		return EOF;
-	// otherwise we do not know how to do that properly...
-	klee_warning_once("unsupported function model");
-    	klee_silent_exit(1);
+	return (int)__symbiotic_nondet_uchar();
 }
