@@ -30,6 +30,7 @@ except ImportError:
     import symbiotic.benchexec.result as result
 
 from . kleebase import SymbioticTool as KleeBase
+from os.path import basename
 
 class KleeToolFullInstrumentation(KleeBase):
     """
@@ -365,6 +366,8 @@ class SymbioticTool(KleeBase):
                opts.property.unreachcall() or \
                opts.property.signedoverflow():
                 cmd.append('-write-waypoints')
+            if opts.sv_comp and len(opts.sources) == 1:
+                cmd.append('-waypoints-in-file={}'.format(basename(opts.sources[0])))
 
         if opts.executable_witness:
             cmd.append('-write-harness')
