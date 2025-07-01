@@ -102,6 +102,7 @@ class SymbioticOptions(object):
         self.test_comp = False
         self.witness_check = False
         self.witness_check_file = None
+        self.guide_only = False
 
         # These were globals previously, move them into stand-alone argparse
         # parser once we switch to argparse
@@ -111,6 +112,7 @@ class SymbioticOptions(object):
         self.save_files = False
         self.working_dir_prefix = '/tmp'
         self.unroll_count = 0
+
 
 def _remove_linkundef(options, what):
     try:
@@ -247,7 +249,7 @@ def parse_command_line():
                                     'search-include-paths', 'replay-error', 'cc',
                                     'report=', 'no-replay-error',
                                     'unroll=', 'full-instrumentation', 'target-settings=',
-                                    'witness-check='])
+                                    'witness-check=', 'guide-only'])
                                    # add klee-params
     except getopt.GetoptError as e:
         err('{0}'.format(str(e)))
@@ -402,6 +404,8 @@ def parse_command_line():
         elif opt == '--witness-check':
             options.witness_check_file = abspath(expanduser(arg))
             set_witness_check(options)
+        elif opt == '--guide-only':
+            options.guide_only = True
         elif opt == '--link':
             options.link_files += arg.split(',')
         elif opt == '--save-files':

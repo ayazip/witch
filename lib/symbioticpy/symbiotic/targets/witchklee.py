@@ -92,6 +92,9 @@ class SymbioticTool(KleeBase):
         if self._options.witness_check_file is None:
             raise SymbioticException("Witch-KLEE needs a witness (--witness-check=<witness>)")
 
+        if opts.guide_only:
+            cmd.append('-guide-only=true')
+
         return cmd + options + tasks + self._options.argv + [self._options.witness_check_file]
 
     def determine_result(self, returncode, returnsignal, output, isTimeout):
