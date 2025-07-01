@@ -49,7 +49,7 @@ usage()
 	echo -e "full-archive       - create a zip file with symbiotic and add non-standard dependencies"
 	echo "" # new line
 	echo -e "scripts"
-	echo -e "witch-klees"
+	echo -e "witch-klee"
 	echo -e "bin     - run compilation _from_ this point"
 	echo "" # new line
 	echo -e "OPTS = options for make (i. e. -j8)"
@@ -101,8 +101,8 @@ ENABLE_TCMALLOC=$(if check_tcmalloc; then echo "on"; else echo "off"; fi)
 
 ARCHIVE="no"
 FULL_ARCHIVE="no"
-ARCHIVE_PREFIX="symbiotic/"
-PRECOMPILE_BITCODE="yes"
+ARCHIVE_PREFIX="witch/"
+PRECOMPILE_BITCODE="no"
 
 while [ $# -gt 0 ]; do
 	case $1 in
@@ -120,7 +120,7 @@ while [ $# -gt 0 ]; do
 			NO_LLVM=1
 		;;
 		'witch-klee')
-			BUILD_WITCH_KLEE=yes
+			BUILD_WITCH_KLEE="yes"
 		;;
 		'no-precompile-bitcode')
 			PRECOMPILE_BITCODE="no"
@@ -399,6 +399,7 @@ build_llvm()
 		cmake .. \
 			-DCMAKE_BUILD_TYPE=${BUILD_TYPE}\
 			-DLLVM_INCLUDE_EXAMPLES=OFF \
+			-DLLVM_INCLUDE_BENCHMARKS=OFF \
 			-DLLVM_INCLUDE_DOCS=OFF \
 			-DLLVM_BUILD_TESTS=OFF\
 			-DLLVM_BUILD_TESTS=OFF\
@@ -692,6 +693,12 @@ fi
 ######################################################################
 #   copy lib and include files
 ######################################################################
+
+PHASE="installing python libclang"
+if [ ! -d $SRCDIR/lib/symbioticpy/clang ]; then
+        pip3 install libclang==14.0.1 -t $SRCDIR/lib/symbioticpy/
+fi
+
 PHASE="installing files and function models"
 if [ $FROM -le 6 ]; then
 	if [ ! -d CMakeFiles ]; then

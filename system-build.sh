@@ -60,7 +60,7 @@ OPTS=
 
 ARCHIVE="no"
 FULL_ARCHIVE="no"
-ARCHIVE_PREFIX="symbiotic/"
+ARCHIVE_PREFIX="witch/"
 BUILD_WITCH_KLEE="yes"
 LLVM_CONFIG=
 
@@ -422,6 +422,13 @@ fi
 ######################################################################
 #   copy lib and include files
 ######################################################################
+
+PHASE="installing python libclang"
+if [ ! -d $SRCDIR/lib/symbioticpy/clang ]; then
+        pip install libclang==14.0.1 -t $SRCDIR/lib/symbioticpy/
+fi
+
+
 PHASE="installing files and function models"
 if [ $FROM -le 6 ]; then
 	if [ ! -d CMakeFiles ]; then
