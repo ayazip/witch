@@ -34,7 +34,7 @@ ABS_SRCDIR=`abspath $SRCDIR`
 
 usage()
 {
-	echo "$0 [shell] [no-llvm] [update] [archive | full-archive] [slicer | scripts | klee | witness | bin] OPTS"
+	echo "$0 [shell] [no-llvm] [update] [archive | full-archive] [scripts | witch-klee | bin] OPTS"
 	echo "" # new line
 	echo -e "shell    - run shell with environment set"
 	echo -e "no-llvm  - skip compiling llvm"
@@ -45,14 +45,11 @@ usage()
 	echo -e "with-llvm-src=path - use llvm sources from path"
 	echo -e "llvm-version=ver   - use this version of llvm"
 	echo -e "build-type=TYPE    - set Release/Debug build"
-	echo -e "build-stp          - build and use STP in KLEE"
-	echo -e "build-klee         - build KLEE (default: yes)"
-	echo -e "build-nidhugg      - build nidhugg bug-finding tool (default: no)"
 	echo -e "archive            - create a zip file with symbiotic"
 	echo -e "full-archive       - create a zip file with symbiotic and add non-standard dependencies"
 	echo "" # new line
-	echo -e "slicer, scripts,"
-	echo -e "klee, witness"
+	echo -e "scripts"
+	echo -e "witch-klees"
 	echo -e "bin     - run compilation _from_ this point"
 	echo "" # new line
 	echo -e "OPTS = options for make (i. e. -j8)"
@@ -90,15 +87,10 @@ WITH_LLVM=
 WITH_LLVM_SRC=
 WITH_LLVM_DIR=
 WITH_LLVMCBE='no'
-BUILD_STP='no'
 BUILD_Z3='no'
-BUILD_SVF='no'
-BUILD_PREDATOR='no'
-BUILD_LLVM2C='yes'
 
-BUILD_KLEE="yes"
-BUILD_WITCH_KLEE="no"
-BUILD_NIDHUGG="no"
+BUILD_WITCH_KLEE="yes"
+
 
 
 HAVE_32_BIT_LIBS=$(if check_32_bit; then echo "yes"; else echo "no"; fi)
@@ -118,15 +110,6 @@ while [ $# -gt 0 ]; do
 			usage
 			exit 0
 		;;
-		'slicer')
-			FROM='1'
-		;;
-		'klee')
-			FROM='4'
-		;;
-		'witness')
-			FROM='5'
-		;;
 		'scripts')
 			FROM='6'
 		;;
@@ -136,20 +119,11 @@ while [ $# -gt 0 ]; do
 		'no-llvm')
 			NO_LLVM=1
 		;;
-		'no-klee')
-			BUILD_KLEE=no
-		;;
 		'witch-klee')
 			BUILD_WITCH_KLEE=yes
 		;;
-		'no-llvm2c')
-			BUILD_LLVM2C="no"
-		;;
 		'no-precompile-bitcode')
 			PRECOMPILE_BITCODE="no"
-		;;
-		'build-nidhugg')
-			BUILD_NIDHUGG="yes"
 		;;
 		'update')
 			UPDATE=1
@@ -157,14 +131,8 @@ while [ $# -gt 0 ]; do
 		with-zlib)
 			WITH_ZLIB="yes"
 		;;
-		build-stp)
-			BUILD_STP="yes"
-		;;
 		build-z3)
 			BUILD_Z3="yes"
-		;;
-		build-predator)
-			BUILD_PREDATOR="yes"
 		;;
 		archive)
 			ARCHIVE="yes"
@@ -351,8 +319,8 @@ check()
 		fi
 	fi
 
-	if [ "$BUILD_STP" = "no" -a "$HAVE_Z3" = "no" -a "$BUILD_Z3" = "no" ]; then
-		exitmsg "Need z3 from package or enable building STP or Z3 by using 'build-stp' or 'build-z3' argument."
+	if [ "$HAVE_Z3" = "no" -a "$BUILD_Z3" = "no" ]; then
+		exitmsg "Need z3 from package or enable building Z3 by using 'build-z3' argument."
 	fi
 
 }
@@ -522,38 +490,6 @@ else
 fi
 
 ######################################################################
-#   SVF
-######################################################################
-PHASE="building SVF"
-if [ $FROM -le 1 -a $BUILD_SVF = "yes" ]; then
-	git_clone_or_pull https://github.com/SVF-tools/SVF
-
-	# download the dg library
-	pushd "$SRCDIR/SVF" || exitmsg "Cloning failed"
-	mkdir -p build-${LLVM_VERSION} || exitmsg "error"
-	pushd build-${LLVM_VERSION} || exitmsg "error"
-
-	if [ ! -d CMakeFiles ]; then
-
-		export LLVM_SRC="$LLVM_SRC_PATH"
-		export LLVM_OBJ="$LLVM_BUILD_PATH"
-		export LLVM_DIR="$LLVM_BUILDPATH"
-		cmake .. \
-			-DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-			-DCMAKE_INSTALL_PREFIX=$LLVM_PREFIX \
-			|| clean_and_exit 1 "git"
-	fi
-
-	(build && make install) || exitmsg "Building and installing SVF"
-	popd
-	popd
-fi # SVF
-
-if [ "`pwd`" != $ABS_SRCDIR ]; then
-	exitmsg "Inconsistency in the build script, should be in $ABS_SRCDIR"
-fi
-
-######################################################################
 #   dg
 ######################################################################
 PHASE="building dg"
@@ -595,43 +531,6 @@ if [ "`pwd`" != $ABS_SRCDIR ]; then
 fi
 
 ######################################################################
-#   sbt-slicer
-######################################################################
-PHASE="building sbt-slicer"
-if [ $FROM -le 1 ]; then
-	# initialize instrumentation module if not done yet
-	if [  "x$UPDATE" = "x1" -o -z "$(ls -A $SRCDIR/sbt-slicer)" ]; then
-		git_submodule_init
-	fi
-
-	pushd "$SRCDIR/sbt-slicer" || exitmsg "Cloning failed"
-	mkdir -p build-${LLVM_VERSION} || exitmsg "error"
-	pushd build-${LLVM_VERSION} || exitmsg "error"
-	if [ ! -d CMakeFiles ]; then
-		cmake .. \
-			-DCMAKE_BUILD_TYPE=${BUILD_TYPE}\
-			-DCMAKE_INSTALL_LIBDIR:PATH=lib \
-			-DCMAKE_INSTALL_FULL_DATADIR:PATH=$LLVM_PREFIX/share \
-			-DLLVM_SRC_PATH="$LLVM_SRC_PATH" \
-			-DLLVM_BUILD_PATH="$LLVM_BUILD_PATH" \
-			-DLLVM_DIR=$LLVM_DIR \
-			-DLLVM_LINK_DYLIB="$LLVM_DYLIB" \
-			-DDG_PATH=$ABS_SRCDIR/dg \
-			-DCMAKE_INSTALL_PREFIX=$LLVM_PREFIX \
-			-DCMAKE_INSTALL_RPATH="\$ORIGIN/../lib" \
-			|| clean_and_exit 1 "git"
-	fi
-
-	(build && make install) || exitmsg  "Building and installing sbt-slicer"
-	popd
-	popd
-fi
-
-if [ "`pwd`" != $ABS_SRCDIR ]; then
-	exitmsg "Inconsistency in the build script, should be in $ABS_SRCDIR"
-fi
-
-######################################################################
 #   zlib
 ######################################################################
 PHASE="building zlib"
@@ -646,60 +545,6 @@ if [ $FROM -le 2 -a $WITH_ZLIB = "yes" ]; then
 	(make "$OPTS" && make install) || exitmsg  "Building and installing ZLib"
 
 	cd -
-fi
-
-PHASE="building minisat and stp"
-if [ "$BUILD_STP" = "yes" ]; then
-	######################################################################
-	#   minisat
-	######################################################################
-	if [ $FROM -le 4  -a "$BUILD_KLEE" = "yes" ]; then
-		git_clone_or_pull git://github.com/stp/minisat.git minisat
-		pushd minisat
-		mkdir -p build
-		cd build || exitmsg "error"
-
-		# use our zlib, if we compiled it
-		ZLIB_FLAGS=
-		if [ -d $ABS_RUNDIR/zlib ]; then
-			ZLIB_FLAGS="-DZLIB_LIBRARY=-L${PREFIX}/lib;-lz"
-			ZLIB_FLAGS="$ZLIB_FLAGS -DZLIB_INCLUDE_DIR=$PREFIX/include"
-		fi
-
-		if [ ! -d CMakeFiles ]; then
-			cmake .. -DCMAKE_INSTALL_PREFIX=$PREFIX \
-				  -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
-					 -DSTATICCOMPILE=ON $ZLIB_FLAGS
-		fi
-
-		(make "$OPTS" && make install) || exitmsg  "Building and installing minisat"
-		popd
-	fi
-
-	######################################################################
-	#   STP
-	######################################################################
-	if [ $FROM -le 4  -a "$BUILD_KLEE" = "yes" ]; then
-		git_clone_or_pull git://github.com/stp/stp.git stp
-		cd stp || exitmsg "Cloning failed"
-		if [ ! -d CMakeFiles ]; then
-			cmake . -DCMAKE_INSTALL_PREFIX=$PREFIX \
-				-DCMAKE_INSTALL_LIBDIR:PATH=lib \
-				-DSTP_TIMESTAMPS:BOOL="OFF" \
-				-DCMAKE_CXX_FLAGS_RELEASE=-O2 \
-				-DCMAKE_C_FLAGS_RELEASE=-O2 \
-				-DCMAKE_BUILD_TYPE=${BUILD_TYPE}\
-				-DBUILD_SHARED_LIBS:BOOL=OFF \
-				-DENABLE_PYTHON_INTERFACE:BOOL=OFF || clean_and_exit 1 "git"
-		fi
-
-		(build "OPTIMIZE=-O2 CFLAGS_M32=install" && make install) || exitmsg  "Building and installing STP"
-		cd -
-	fi
-fi # BUILD_STP
-
-if [ "`pwd`" != $ABS_SRCDIR ]; then
-	exitmsg "Inconsistency in the build script, should be in $ABS_SRCDIR"
 fi
 
 ######################################################################
@@ -760,19 +605,6 @@ if [ "`pwd`" != $ABS_SRCDIR ]; then
 	exitmsg "Inconsistency in the build script, should be in $ABS_SRCDIR"
 fi
 
-
-######################################################################
-#   KLEE
-######################################################################
-PHASE="building KLEE"
-if [ $FROM -le 4  -a "$BUILD_KLEE" = "yes" ]; then
-	source scripts/build-klee.sh
-fi
-
-if [ "`pwd`" != $ABS_SRCDIR ]; then
-	exitmsg "Inconsistency in the build script, should be in $ABS_SRCDIR"
-fi
-
 ######################################################################
 #   Witch-KLEE
 ######################################################################
@@ -784,101 +616,6 @@ fi
 if [ "`pwd`" != $ABS_SRCDIR ]; then
 	exitmsg "Inconsistency in the build script, should be in $ABS_SRCDIR"
 fi
-
-
-######################################################################
-#   nidhugg
-######################################################################
-PHASE="building Nidhugg"
-if [ $FROM -le 4  -a "$BUILD_NIDHUGG" = "yes" ]; then
-	if [ ! -d nidhugg ]; then
-		git_clone_or_pull "https://github.com/nidhugg/nidhugg"
-	fi
-
-	mkdir -p nidhugg/build-${LLVM_VERSION}
-
-	pushd nidhugg
-	# get the immer submodule
-	git submodule init
-	git submodule update
-	popd
-
-	pushd nidhugg/build-${LLVM_VERSION}
-
-	if [ "x$BUILD_TYPE" = "xRelease" ]; then
-		NIDHUGG_OPTIONS=""
-	else
-		NIDHUGG_OPTIONS="--enable-asserts"
-	fi
-
-	if [ ! -f "config.h" ]; then
-
-		OLD_PATH="$PATH"
-		PATH="$ABS_SRCDIR/llvm-${LLVM_VERSION}/build/bin":$PATH
-
-		autoreconf --install ..
-		../configure --prefix="$LLVM_PREFIX" CXXFLAGS="-I$(pwd)/../deps/immer" \
-			     $NIDHUGG_OPTIONS \
-		  || clean_and_exit 1 "git"
-
-		  PATH="$OLD_PATH"
-	fi
-
-	(build && make install) || exitmsg  "Building and installing Nidhugg"
-	popd
-fi
-
-if [ "`pwd`" != $ABS_SRCDIR ]; then
-	exitmsg "Inconsistency in the build script, should be in $ABS_SRCDIR"
-fi
-
-######################################################################
-#   llvm2c
-######################################################################
-PHASE="building llvm2c"
-if [ $FROM -le 6 -a "$BUILD_LLVM2C" = "yes" ]; then
-	source scripts/build-llvm2c.sh
-fi
-
-if [ "`pwd`" != $ABS_SRCDIR ]; then
-	exitmsg "Inconsistency in the build script, should be in $ABS_SRCDIR"
-fi
-
-
-if [  -d predator-${LLVM_VERSION} ]; then
-	# we already got a build of predator, so rebuild it
-	BUILD_PREDATOR="yes"
-fi
-######################################################################
-#   Predator
-######################################################################
-PHASE="building Predator"
-if [ $FROM -le 6 -a "$BUILD_PREDATOR" = "yes" ]; then
-	if [ ! -d predator-${LLVM_VERSION} ]; then
-               git_clone_or_pull "https://github.com/staticafi/predator" -b svcomp21-v1 predator-${LLVM_VERSION}
-	fi
-
-	pushd predator-${LLVM_VERSION}
-
-	if [ ! -f cl_build/CMakeCache.txt ]; then
-	        ./switch-host-llvm.sh ${ABS_SRCDIR}/llvm-${LLVM_VERSION}/build/${LLVM_CMAKE_CONFIG_DIR}
-	fi
-
-    build || exitmsg  "Building Predator"
-	mkdir -p $LLVM_PREFIX/predator/lib
-	cp sl_build/*.so $LLVM_PREFIX/predator/lib
-	cp sl_build/slllvm* $LLVM_PREFIX/bin/
-	cp sl_build/*.sh $LLVM_PREFIX/predator/
-	cp build-aux/cclib.sh $LLVM_PREFIX/predator/
-	cp passes-src/passes_build/*.so $LLVM_PREFIX/predator/lib
-
-	popd
-fi
-
-if [ "`pwd`" != $ABS_SRCDIR ]; then
-       exitmsg "Inconsistency in the build script, should be in $ABS_SRCDIR"
-fi
-
 
 ######################################################################
 #   instrumentation

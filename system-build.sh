@@ -34,7 +34,7 @@ ABS_SRCDIR=`abspath $SRCDIR`
 
 usage()
 {	echo USAGE
-	echo "$0 [archive | full-archive] [update] [slicer | scripts | klee | witness | bin] OPTS"
+	echo "$0 [archive | full-archive] [update] [scripts | witch-klee | bin] OPTS"
 	echo "" # new line
 	echo -e "build-type=TYPE    - set Release/Debug build"
 	echo -e "llvm-config        - use the given llvm-config binary"
@@ -42,8 +42,8 @@ usage()
 	echo -e "full-archive       - create a zip file with symbiotic and add non-standard dependencies"
 	echo -e "update             - update repositories"
 	echo "" # new line
-	echo -e "slicer, scripts,"
-	echo -e "klee, witness"
+	echo -e "scripts"
+	echo -e "witch-klee"
 	echo -e "bin     - run compilation _from_ this point"
 	echo "" # new line
 	echo -e "OPTS = options for make (i. e. -j8)"
@@ -61,10 +61,7 @@ OPTS=
 ARCHIVE="no"
 FULL_ARCHIVE="no"
 ARCHIVE_PREFIX="symbiotic/"
-BUILD_KLEE="yes"
-BUILD_WITCH_KLEE="no"
-BUILD_PREDATOR="no"
-BUILD_LLVM2C='yes'
+BUILD_WITCH_KLEE="yes"
 LLVM_CONFIG=
 
 while [ $# -gt 0 ]; do
@@ -74,37 +71,18 @@ while [ $# -gt 0 ]; do
 			usage
 			exit 0
 		;;
-		'slicer')
-			FROM='1'
-		;;
-		'klee')
-			FROM='4'
-		;;
-		'witness')
-			FROM='5'
-		;;
 		'scripts')
 			FROM='6'
 		;;
 		'bin')
 			FROM='7'
 		;;
-		'no-klee')
-			BUILD_KLEE=no
-		;;
 		'witch-klee')
 			BUILD_WITCH_KLEE=yes
-		;;
-		'no-llvm2c')
-			BUILD_LLVM2C="no"
 		;;
 		'update')
 			UPDATE=1
 		;;
-		build-predator)
-			BUILD_PREDATOR="yes"
-		;;
-
 		llvm-config=*)
 			LLVM_CONFIG=${1##*=}
 		;;
@@ -362,54 +340,6 @@ if [ "`pwd`" != $ABS_SRCDIR ]; then
 fi
 
 ######################################################################
-#   sbt-slicer
-######################################################################
-PHASE="building sbt-slicer"
-if [ $FROM -le 1 ]; then
-
-	# initialize instrumentation module if not done yet
-	if [  "x$UPDATE" = "x1" -o -z "$(ls -A $SRCDIR/sbt-slicer)" ]; then
-		git_submodule_init
-	fi
-
-	pushd "$SRCDIR/sbt-slicer" || exitmsg "Cloning failed"
-	mkdir -p build-${LLVM_VERSION} || exitmsg "error"
-	pushd build-${LLVM_VERSION} || exitmsg "error"
-	if [ ! -d CMakeFiles ]; then
-		cmake .. \
-			-DCMAKE_BUILD_TYPE=${BUILD_TYPE}\
-			-DCMAKE_INSTALL_LIBDIR:PATH=lib \
-			-DCMAKE_INSTALL_FULL_DATADIR:PATH=$LLVM_PREFIX/share \
-			-DLLVM_DIR="$LLVM_DIR" \
-			-DDG_PATH=$ABS_SRCDIR/dg \
-			-DLLVM_LINK_DYLIB="$LLVM_DYLIB" \
-			-DCMAKE_INSTALL_PREFIX=$LLVM_PREFIX \
-			-DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' \
-			|| clean_and_exit 1 "git"
-	fi
-
-	(build && make install) || exitmsg "Failed building sbt-slicer"
-	popd
-	popd
-fi
-
-if [ "`pwd`" != $ABS_SRCDIR ]; then
-	exitmsg "Inconsistency in the build script, should be in $ABS_SRCDIR"
-fi
-
-######################################################################
-#   KLEE
-######################################################################
-PHASE="building KLEE"
-if [ $FROM -le 4  -a "$BUILD_KLEE" = "yes" ]; then
-	source scripts/build-klee.sh
-fi
-
-if [ "`pwd`" != $ABS_SRCDIR ]; then
-	exitmsg "Inconsistency in the build script, should be in $ABS_SRCDIR"
-fi
-
-######################################################################
 #   Witch-KLEE
 ######################################################################
 PHASE="building Witch-KLEE"
@@ -420,42 +350,6 @@ fi
 if [ "`pwd`" != $ABS_SRCDIR ]; then
 	exitmsg "Inconsistency in the build script, should be in $ABS_SRCDIR"
 fi
-
-
-######################################################################
-#   Predator
-######################################################################
-PHASE="building Predator"
-if [  -d predator-${LLVM_VERSION} ]; then
-	# we already got a build of predator, so rebuild it
-	BUILD_PREDATOR="yes"
-fi
-if [ $FROM -le 6 -a "$BUILD_PREDATOR" = "yes" ]; then
-	if [ ! -d predator-${LLVM_VERSION} ]; then
-               git_clone_or_pull "https://github.com/staticafi/predator" -b lukas-zaoral-rebase predator-${LLVM_VERSION}
-	fi
-
-	pushd predator-${LLVM_VERSION}
-
-	if [ ! -f cl_build/CMakeCache.txt ]; then
-		./switch-host-llvm.sh "$LLVM_DIR"
-	fi
-
-    build || exitmsg "Failed building Predator"
-	mkdir -p $LLVM_PREFIX/predator/lib
-	cp sl_build/*.so $LLVM_PREFIX/predator/lib
-	cp sl_build/slllvm* $LLVM_PREFIX/bin/
-	cp sl_build/*.sh $LLVM_PREFIX/predator/
-	cp build-aux/cclib.sh $LLVM_PREFIX/predator/
-	cp passes-src/passes_build/*.so $LLVM_PREFIX/predator/lib
-
-	popd
-fi
-
-if [ "`pwd`" != $ABS_SRCDIR ]; then
-	exitmsg "Inconsistency in the build script, should be in $ABS_SRCDIR"
-fi
-
 
 ######################################################################
 #   instrumentation
@@ -496,14 +390,6 @@ fi
 
 if [ "`pwd`" != $ABS_SRCDIR ]; then
 	exitmsg "Inconsistency in the build script, should be in $ABS_SRCDIR"
-fi
-
-######################################################################
-#   llvm2c
-######################################################################
-PHASE="building llvm2c"
-if [ $FROM -le 6 -a "$BUILD_LLVM2C" = "yes" ]; then
-	source scripts/build-llvm2c.sh
 fi
 
 ######################################################################

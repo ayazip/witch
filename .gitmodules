@@ -2,20 +2,10 @@
 	path = dg
 	url = https://github.com/staticafi/dg
 	ignore = untracked
-[submodule "sbt-slicer"]
-	path = sbt-slicer
-	url = https://github.com/staticafi/sbt-slicer
-	ignore = untracked
 [submodule "sbt-instrumentation"]
 	path = sbt-instrumentation
 	url = https://github.com/staticafi/sbt-instrumentation
 	ignore = untracked
-[submodule "klee"]
-	path = klee
-	url = https://github.com/staticafi/JetKlee
-[submodule "llvm2c"]
-	path = llvm2c
-	url = https://github.com/staticafi/llvm2c
 [submodule "witch-klee"]
 	path = witch-klee
 	url = https://github.com/ayazip/witch-klee
