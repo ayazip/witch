@@ -39,6 +39,7 @@ class SymbioticTool(KleeBase):
 
     def __init__(self, opts):
         KleeBase.__init__(self, opts)
+        self.generate_witness = False
 
     def executable(self):
         """
@@ -112,7 +113,9 @@ class SymbioticTool(KleeBase):
         for line in output:
             if b'Parsing failed' in line:
                 parsing_failed = line.strip().split(b':')[-1].strip().decode('utf-8')
-            if b'Valid violation witness' in line:
+            if b'Error found when using the witness as a guide' in line:
+                self.generate_witness = True
+            if b'Valid violation witness' in line or b'Error found when using the witness as a guide' in line:
                 if b'unreach-call' in line:
                     return result.RESULT_FALSE_REACH
                 if b'valid-free' in line:
@@ -127,6 +130,7 @@ class SymbioticTool(KleeBase):
                     return result.RESULT_FALSE_OVERFLOW
                 if b'termination' in line:
                     return result.RESULT_FALSE_TERMINATION
+
             if b'may not be confirmed' in line:
                 unknown = True
         if returncode != 0:
