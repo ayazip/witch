@@ -124,7 +124,7 @@ def _remove_linkundef(options, what):
 def set_witness_check(opts):
     opts.witness_check = True
     opts.sv_comp = True
-    opts.nowitness = True
+    opts.nowitness = not opts.guide_only
     opts.no_integrity_check = True
     opts.malloc_never_fails = True
     opts.explicit_symbolic = True
@@ -459,7 +459,7 @@ def parse_command_line():
     if options.require_slicer and options.noslice:
         err("Slicing is forbidden but required at the same time")
 
-    if not options.nowitness and not options.exit_on_error:
+    if not options.nowitness and not (options.exit_on_error or options.witness_check):
         err("Witness generation is only supported with --exit-on-error")
 
     return options, args

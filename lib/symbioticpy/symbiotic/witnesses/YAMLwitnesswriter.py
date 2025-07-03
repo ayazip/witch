@@ -20,7 +20,7 @@ def get_hash(source):
     return hsh.hexdigest()
 
 class YAMLWriter(object):
-    def __init__(self, source, prps, is32bit, is_correctness_wit, saveto):
+    def __init__(self, source, prps, is32bit, is_correctness_wit, saveto, shift = None):
         self._source = source
         self._relsource = relpath(source, dirname(saveto))
         self._prps = prps
@@ -32,6 +32,7 @@ class YAMLWriter(object):
         self.errorExpr = None
         self.calls = dict()
         self.witness = []
+        self.shift = shift
 
     def add_metadata(self):
         witness = {}
@@ -197,6 +198,40 @@ class YAMLWriter(object):
         # No need for this if we have cycle waypoints
         if cycle:
             self.errorLoc = None
+
+        if self.shift:
+            self.shift_back()
+
+    def shift_back(self):
+        add_lines = 1 if self._source.endswith('.i') else 0
+        tmp_test = self.test.copy()
+        new_calls = {}
+
+        for i in range(len(self.test)):
+            call = self.test[i]
+            og_line = call[0] - add_lines
+            og_column = call[1]
+            if og_line in self.shift.keys():
+                for col in sorted(self.shift[og_line].keys()):
+                    if og_column > col:
+                        og_column -= self.shift[og_line][col]
+            tmp_test[i] = (og_line, og_column, self.test[i][2], self.test[i][3])
+            new_calls[(og_line, og_column)] = None
+        self.test = tmp_test
+        self.calls = new_calls
+
+        # now the same for the error location
+        og_line = self.errorLoc[0] - add_lines
+        og_column = self.errorLoc[1]
+
+        if og_line in self.shift.keys():
+            if og_line in self.shift.keys():
+                for col in sorted(self.shift[og_line].keys()):
+                    if og_column > col:
+                        og_column -= self.shift[og_line][col]
+
+        self.errorLoc = og_line, og_column
+
 
 
 def _get_recurring_location(node, error_loc):

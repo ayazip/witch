@@ -142,7 +142,7 @@ class Symbiotic(object):
             has_error = res and\
                         (res.startswith('false') or\
                         (res.startswith('done') and options.property.errorcall()))
- 
+
         if has_error and hasattr(tool, "describe_error"):
             tool.describe_error(cc.curfile)
 
@@ -166,4 +166,3 @@ class Symbiotic(object):
         except SymbioticExceptionalResult as res:
             # we got result from some exceptional case
             return str(res)
-

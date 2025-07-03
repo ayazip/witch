@@ -20,6 +20,8 @@ limitations under the License.
 """
 
 import re
+from os.path import join, splitext, dirname
+from symbiotic.witnesses.YAMLwitnesswriter import YAMLWriter
 
 try:
     import benchexec.util as util
@@ -31,6 +33,7 @@ except ImportError:
 
 from symbiotic.exceptions import SymbioticException
 from . kleebase import SymbioticTool as KleeBase
+from . kleebase import get_ktest
 
 class SymbioticTool(KleeBase):
     """
@@ -39,7 +42,9 @@ class SymbioticTool(KleeBase):
 
     def __init__(self, opts):
         KleeBase.__init__(self, opts)
-        self.generate_witness = False
+        self._generate_witness = False
+        self.shifted = {}
+        self.og_file = None
 
     def executable(self):
         """
@@ -95,6 +100,7 @@ class SymbioticTool(KleeBase):
 
         if opts.guide_only:
             cmd.append('-guide-only=true')
+            cmd.append('-write-waypoints')
 
         return cmd + options + tasks + self._options.argv + [self._options.witness_check_file]
 
@@ -114,7 +120,7 @@ class SymbioticTool(KleeBase):
             if b'Parsing failed' in line:
                 parsing_failed = line.strip().split(b':')[-1].strip().decode('utf-8')
             if b'Error found when using the witness as a guide' in line:
-                self.generate_witness = True
+                self._generate_witness = True
             if b'Valid violation witness' in line or b'Error found when using the witness as a guide' in line:
                 if b'unreach-call' in line:
                     return result.RESULT_FALSE_REACH
@@ -190,3 +196,24 @@ class SymbioticTool(KleeBase):
             passes.append('-instrument-nontermination-mark-header')
 
         return passes
+
+    def generate_witness(self, llvmfile, sources, has_error):
+        saveto = self._options.witness_output
+        if not self._generate_witness or not has_error:
+            return
+
+        assert len(sources) == 1 and "Can not generate witnesses for more sources yet"
+        print('Generating YAML witness: {0}'.format(saveto))
+
+        if self._options.property.memcleanup():
+            print('Failed generating YAML witness: Property not supported by format')
+            return
+
+        pth = get_ktest(join(dirname(llvmfile), 'klee-last'))
+        test = '{0}.waypoints'.format(splitext(pth)[0])
+
+        assert saveto is not None
+        gen = YAMLWriter(self.og_file, self._options.property,
+                         self._options.is32bit, not has_error, saveto, self.shifted)
+        gen.generate_violation_witness(test)
+        gen.write(saveto)

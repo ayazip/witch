@@ -925,14 +925,18 @@ class SymbioticCC(object):
             err("Witness file " + self.options.witness_check_file + " missing!")
 
         print_stdout('INFO: Starting witness preprocessing', color='WHITE')
+        self._tool.og_file = self.sources[0]
         assert len(self.sources) == 1
         program_transformed =  os.path.basename(self.sources[0])
         witness_transformed =  os.path.basename(self.options.witness_check_file)
         transformer = ValidationTransformer(self.sources[0], self.options.witness_check_file, program_transformed, witness_transformed)
         transformer.transform()
 
+        if self.options.guide_only:
+            self._tool.shifted = transformer._shift
+
         self.options.witness_check_file = witness_transformed
         self.sources = [program_transformed]
+
         print_stdout('INFO: Done witness preprocessing', color='WHITE')
         return
-
