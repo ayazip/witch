@@ -32,6 +32,7 @@ except ImportError:
     import symbiotic.benchexec.result as result
 
 from symbiotic.exceptions import SymbioticException
+from .. utils.utils import print_stdout, print_stderr, process_grep, err
 from . kleebase import SymbioticTool as KleeBase
 from . kleebase import get_ktest
 
@@ -139,6 +140,8 @@ class SymbioticTool(KleeBase):
 
             if b'may not be confirmed' in line:
                 unknown = True
+            if b'Follow waypoint of segment' in line:
+                print_stdout(line.decode('utf-8'))
         if returncode != 0:
             if parsing_failed:
                 return f'{result.RESULT_ERROR} ({parsing_failed})'
