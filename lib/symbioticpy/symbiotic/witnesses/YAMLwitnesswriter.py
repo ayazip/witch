@@ -206,7 +206,6 @@ class YAMLWriter(object):
         add_lines = 1 if self._source.endswith('.i') else 0
         tmp_test = self.test.copy()
         new_calls = {}
-
         for i in range(len(self.test)):
             call = self.test[i]
             og_line = call[0] - add_lines
@@ -215,6 +214,8 @@ class YAMLWriter(object):
                 for col in sorted(self.shift[og_line].keys()):
                     if og_column > col:
                         og_column -= self.shift[og_line][col]
+                    else:
+                        break
             tmp_test[i] = (og_line, og_column, self.test[i][2], self.test[i][3])
             new_calls[(og_line, og_column)] = None
         self.test = tmp_test

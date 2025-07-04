@@ -333,9 +333,10 @@ class ValidationTransformer:
     def _add_shift(self, line, col, length):
         if line in self._shift and col in self._shift[line]:
             self._shift[line][col] += length
-        else:
+            return
+        elif line not in self._shift:
             self._shift[line] = {}
-            self._shift[line][col] = length
+        self._shift[line][col] = length
 
     # After we inserted some calls into the C code, some statements described in the witness
     # have changed locations, and we need to adjust it.
