@@ -17,6 +17,7 @@ char* fgets(char* str, int count, FILE *f) {
 
         if (__symbiotic_nondet__Bool()) {
             str[i] = '\n';
+            i++;
             break;
         }
 
@@ -25,6 +26,6 @@ char* fgets(char* str, int count, FILE *f) {
 
         str[i] = __symbiotic_nondet_char();
     }
-    str[i + 1] = 0;
+    str[i] = 0;
 	return str;
 }
