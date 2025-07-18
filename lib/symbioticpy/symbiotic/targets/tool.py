@@ -213,4 +213,3 @@ class SymbioticBaseTool(object):
    # These callbacks are run 'always' before running a verification tool,
     # so even multiple times. If you want to run something only once,
     # put it into passes/actions_after_slicing
-
