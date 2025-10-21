@@ -20,10 +20,6 @@ RUN pip3 install numpy
 
 WORKDIR /opt
 
-RUN mkdir witch
-COPY . witch
-WORKDIR witch
-
 RUN git config --global user.email "hey@you.com"
 RUN git config --global user.name "Symbiotic User"
-RUN ./system-build.sh no-klee no-llvm2c witch-klee llvm-version=14.0.0 full-archive -j8
+RUN ./system-build.sh witch-klee llvm-version=14.0.0 full-archive -j8
