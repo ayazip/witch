@@ -111,7 +111,8 @@ git add \
 	$(find . -name '*.bc')\
 	properties/* \
 	$(find lib/symbioticpy/symbiotic -name '*.py')\
-        $(find lib/symbioticpy/clang -name '*.py')\
+	$(find lib/symbioticpy/clang -name '*.py')\
+	$(find lib/symbioticpy/clang -name '*.so')\
 	lib/symbioticpy/libclang-*dist-info \
 	LICENSE.txt README.md
 	#$LLVM_PREFIX/include/stddef.h \
