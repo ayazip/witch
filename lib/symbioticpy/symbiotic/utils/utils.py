@@ -3,7 +3,6 @@
 import sys
 import os
 from time import time
-from distutils.version import LooseVersion
 
 COLORS = {
     'DARK_BLUE': '\033[0;34m',
@@ -147,4 +146,3 @@ def dump_paths(dump_as_cmd=False, fun = print_stdout):
                 fun('export {0}="{1} ${0}"'.format(v, os.environ[v]))
             else:
                 fun('{0}="{1}"'.format(v, os.environ[v]))
-
