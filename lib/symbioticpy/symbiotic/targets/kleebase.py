@@ -18,7 +18,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-from os.path import basename, dirname, abspath, isfile, join, realpath
+from os.path import basename, dirname, abspath, isfile, join, realpath, exists, splitext
 from os import listdir, rename
 from struct import unpack
 from symbiotic.utils.utils import print_stdout, process_grep
@@ -26,6 +26,8 @@ from symbiotic.utils import dbg
 from symbiotic.utils.process import runcmd
 from symbiotic.exceptions import SymbioticException
 from symbiotic.witnesses.witnesses import GraphMLWriter
+from symbiotic.witnesses.YAMLwitnesswriter import YAMLWriter
+
 
 from sys import version_info
 from sys import version_info
@@ -213,16 +215,24 @@ def dump_error(pth):
         dbg('Failed dumping the error: {0}'.format(str(e)))
 
 def generate_graphml(path, source, is_correctness_wit, opts, saveto):
-    if saveto is None:
-        saveto = '{0}.graphml'.format(basename(path))
-        saveto = abspath(saveto)
-
+    assert saveto is not None
     gen = GraphMLWriter(source, opts.property.ltl(),
                         opts.is32bit, is_correctness_wit)
     if not is_correctness_wit:
-        gen.parseError(path, opts.property.termination())
+        gen.generate_violation_witness(path, opts.property.termination())
     else:
         gen.createTrivialWitness()
+        assert path is None
+    gen.write(saveto)
+
+def generate_yaml(path, source, is_correctness_wit, opts, saveto):
+    assert saveto is not None
+    gen = YAMLWriter(source, opts.property.ltl(),
+                        opts.is32bit, is_correctness_wit)
+    if not is_correctness_wit:
+        gen.generate_violation_witness(path)
+    else:
+        gen.generate_correctness_witness()
         assert path is None
     gen.write(saveto)
 
@@ -239,15 +249,34 @@ def get_ktest(bindir):
 def get_harness_file(bindir):
     return get_testcase(bindir) + '.harness.c';
 
-def generate_witness(bindir, sources, is_correctness_wit, opts, saveto = None):
+def generate_graphml_witness(bindir, sources, is_correctness_wit, opts, saveto):
     assert len(sources) == 1 and "Can not generate witnesses for more sources yet"
-    print('Generating {0} witness: {1}'.format('correctness' if is_correctness_wit else 'error', saveto))
+    print('Generating GraphML {0} witness: {1}'.format('correctness' if is_correctness_wit else 'error', saveto))
     if is_correctness_wit:
         generate_graphml(None, sources[0], is_correctness_wit, opts, saveto)
         return
 
     pth = get_ktest(join(bindir, 'klee-last'))
-    generate_graphml(pth, sources[0], is_correctness_wit, opts, saveto)
+    graphml = '{0}.graphml'.format(splitext(pth)[0])
+    generate_graphml(graphml, sources[0], is_correctness_wit, opts, saveto)
+
+def generate_yaml_witness(bindir, sources, is_correctness_wit, opts, saveto):
+    assert len(sources) == 1 and "Can not generate witnesses for more sources yet"
+    print('Generating YAML {0} witness: {1}'.format('correctness' if is_correctness_wit else 'error', saveto))
+    if is_correctness_wit:
+        generate_yaml(None, sources[0], is_correctness_wit, opts, saveto)
+        return
+
+    yaml_support =  opts.property.signedoverflow() or opts.property.unreachcall() or \
+                    opts.property.assertions()
+
+    if not yaml_support:
+        print('Failed generating YAML witness: Property not supported by format')
+        return
+
+    pth = get_ktest(join(bindir, 'klee-last'))
+    test = '{0}.waypoints'.format(splitext(pth)[0])
+    generate_yaml(test, sources[0], is_correctness_wit, opts, saveto)
 
 def generate_exec_witness(bindir, sources, opts, saveto = None):
     assert len(sources) == 1 and "Can not generate witnesses for more sources yet"
@@ -293,6 +322,8 @@ class SymbioticTool(BaseTool, SymbioticBaseTool):
                            #'--output-istats=0',
                            '-only-output-states-covering-new=1',
                            '-use-forked-solver=0',
+                           '--libc=klee',
+                           '--lazy-init',
                            '-external-calls=pure', '-max-memory=8000']
 
     def can_replay(self):
@@ -349,7 +380,6 @@ class SymbioticTool(BaseTool, SymbioticBaseTool):
                         '{0}/llvm-{1}/lib/klee/runtime'.\
                         format(prefix, self.llvm_version()))
 
-
     #  def actions_before_slicing(self, symbiotic):
     #      # FIXME: use -abort-on-threads with slicer
     #      # check whether there are threads in the program
@@ -376,7 +406,7 @@ class SymbioticTool(BaseTool, SymbioticBaseTool):
             return ['-find-exits']
         return []
 
-    def passes_before_verification(self):
+    def passes_after_slicing(self):
         passes = []
 
         # make the uninitialized variables symbolic (if desired)
@@ -396,9 +426,7 @@ class SymbioticTool(BaseTool, SymbioticBaseTool):
             passes.append('-instrument-nontermination')
             passes.append('-instrument-nontermination-mark-header')
 
-
-
-        return passes + super().passes_before_verification()
+        return super().passes_after_slicing() + passes
 
     def describe_error(self, llvmfile):
         if self._options.test_comp:
@@ -425,11 +453,14 @@ class SymbioticTool(BaseTool, SymbioticBaseTool):
         return params
 
     def generate_witness(self, llvmfile, sources, has_error):
-        generate_witness(dirname(llvmfile), sources, not has_error,
-                         self._options, self._options.witness_output)
+        if self._options.witness_output:
+            generate_yaml_witness(dirname(llvmfile), sources, not has_error,
+                                  self._options, self._options.witness_output)
+        if self._options.graphml_witness_output:
+            generate_graphml_witness(dirname(llvmfile), sources, not has_error,
+                                     self._options, self._options.graphml_witness_output)
 
     def generate_exec_witness(self, bitcode, sources):
         out = self._options.witness_output[:self._options.witness_output.rfind('.')+1]+'exe'
         generate_exec_witness(dirname(bitcode), sources,
                               self._options, out)
- 

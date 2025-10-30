@@ -83,16 +83,14 @@ if [ "$UPDATE" = "1" ]; then
 	git pull
 fi
 
-# build 32-bit and 64-bit libs and install them to prefix
+# clean runtime libs, it may be 32-bit from last build
+# make -C runtime -f Makefile.cmake.bitcode clean 2>/dev/null
+
+# build 64-bit libs and install them to prefix
 (build && make install) || exit 1
 
-mv $LLVM_PREFIX/lib64/klee $LLVM_PREFIX/lib/klee || true
-rmdir $LLVM_PREFIX/lib64 || true
-
-# move 32-bit library version to correct prefix
 mkdir -p $LLVM_PREFIX/lib32/klee/runtime
-mv $LLVM_PREFIX/lib/klee/runtime/*32*.bc* \
-	$LLVM_PREFIX/lib32/klee/runtime/ || exit 1
+mv $LLVM_PREFIX/lib/klee/runtime/*32_*.bca $LLVM_PREFIX/lib32/klee/runtime \
+	|| exitmsg "Cannot move 32-bit klee runtime lib files."
 
 popd
-
