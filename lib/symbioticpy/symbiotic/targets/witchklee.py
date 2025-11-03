@@ -153,6 +153,7 @@ class SymbioticTool(KleeBase):
             if b'Parsing failed' in line:
                 parsing_failed = line.strip().split(b':')[-1].strip().decode('utf-8')
             if b'Error found when using the witness as a guide' in line:
+                print_stdout("Error found before witness was confirmed. Generating a new witness.")
                 self._generate_witness = True
             if b'Valid violation witness' in line or b'Error found when using the witness as a guide' in line:
                 if b'unreach-call' in line:
