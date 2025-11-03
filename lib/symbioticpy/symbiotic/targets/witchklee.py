@@ -47,6 +47,38 @@ class SymbioticTool(KleeBase):
         self.shifted = {}
         self.og_file = None
 
+        self._patterns = [
+            ('ESTPTIMEOUT', re.compile('.*query timed out (resolve).*')),
+            ('EKLEETIMEOUT', re.compile('.*HaltTimer invoked.*')),
+            ('EEXTENCALL', re.compile('.*failed external call.*')),
+            ('EEXTENCALLDIS', re.compile('.*external calls disallowed.*')),
+            ('ELOADSYM', re.compile('.*ERROR: unable to load symbol.*')),
+            ('EINVALINST', re.compile('.*LLVM ERROR: Code generator does not support.*')),
+            ('EINITVALS', re.compile('.*unable to compute initial values.*')),
+            ('ESYMSOL', re.compile('.*unable to get symbolic solution.*')),
+            ('ESILENTLYCONCRETIZED', re.compile('.*silently concretizing.*')),
+            ('EEXTRAARGS', re.compile('.*calling .* with extra arguments.*')),
+            ('EMALLOC', re.compile('.*found huge malloc, returning 0.*')),
+            ('ESKIPFORK', re.compile('.*skipping fork.*')),
+            ('EKILLSTATE', re.compile('.*killing.*states \(over memory cap\).*')),
+            ('EPTHREAD', re.compile('.*ERROR:.*Call to pthread_.*')),
+            ('EPTHREAD2', re.compile('.*ERROR:.*unsupported pthread API.*')),
+            ('EMAKESYMBOLIC', re.compile(
+                '.*memory error: invalid pointer: make_symbolic.*')),
+            ('EVECTORUNSUP', re.compile('.*XXX vector instructions unhandled.*')),
+            ('EASM', re.compile('.*ERROR:.*inline assembly is unsupported.*')),
+            ('EMEMALLOC', re.compile('.*KLEE: WARNING: Allocating memory failed.*')),
+            ('ESTACKOVFLW', re.compile('.*WARNING: Maximum stack size reached.*')),
+            ('EROSYMB', re.compile('.*cannot make readonly object symbolic.*')),
+            ('EFUNMODEL', re.compile('.*: unsupported function model.*')),
+            ('ERESOLVMEMCLN', re.compile('.*Failed resolving segment in memcleanup check.*')),
+            ('ERESOLVMEMCLN2', re.compile('.*Cannot resolve non-constant segment in memcleanup check.*')),
+            ('ECMP', re.compile('.*Comparison other than (in)equality is not implemented.*')),
+            ('ERESOLV', re.compile('.*Failed resolving.*segment.*')),
+            ('EUNREACH', re.compile('.*reached "unreachable" instruction.*')),
+            ('ERESOLV', re.compile('.*ERROR:.*Could not resolve.*'))
+        ]
+
     def executable(self):
         """
         Find the path to the executable file that will get executed.
@@ -146,8 +178,11 @@ class SymbioticTool(KleeBase):
             if parsing_failed:
                 return f'{result.RESULT_ERROR} ({parsing_failed})'
             return f'{result.RESULT_ERROR} (exitcode {returncode})'
-        if returnsignal != 0:
-            return f'{result.RESULT_ERROR} (signal {returnsignal})'
+
+        for line in output:
+            for (key, pattern) in self._patterns:
+                if pattern.match(str(line)):
+                    return "{0} ({1})".format(result.RESULT_UNKNOWN, " ".join(key))
 
         return result.RESULT_UNKNOWN if unknown else result.RESULT_TRUE_PROP
 
