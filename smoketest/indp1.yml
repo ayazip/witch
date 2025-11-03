@@ -1,0 +1,37 @@
+- content:
+  - segment:
+    - waypoint:
+        action: follow
+        constraint:
+          format: ext_c_expression
+          value: \result == 2
+        location:
+          column: 28
+          file_name: indp1.c
+          line: 23
+        type: function_return
+  - segment:
+    - waypoint:
+        action: follow
+        location:
+          column: 3
+          file_name: indp1.c
+          line: 32
+        type: target
+  entry_type: violation_sequence
+  metadata:
+    creation_time: '2025-11-03T20:10:12Z'
+    format_version: '2.1'
+    producer:
+      name: symbiotic
+      version: 10.0.0-rc1
+    task:
+      data_model: LP64
+      input_file_hashes:
+        indp1.c: 9d155444443faf1f00dab96cdb68719b0ba1edb1979e11b3fea5d29001e4f12f
+      input_files:
+      - indp1.c
+      language: C
+      specification: CHECK( init(main()), LTL(G valid-free) ),CHECK( init(main()),
+        LTL(G valid-deref) ),CHECK( init(main()), LTL(G valid-memtrack) )
+    uuid: b8e38349-95c4-445b-bbc8-a1d2fbab1043
