@@ -27,7 +27,17 @@ get_nidhugg_dependencies()
 ######################################################################
 # copy license
 cp LICENSE.txt $PREFIX/
+for license in licenses/*; do
+	cp $license $PREFIX/
+done
+
+# copy readme
 cp README.md $PREFIX/
+
+# copy smoketests
+cp -r smoketest $PREFIX/
+cp smoketest.sh $PREFIX/
+chmod +x $PREFIX/smoketest.sh
 
 # copy the symbiotic python module
 cp -r $SRCDIR/lib/symbioticpy $PREFIX/lib || exit 1
@@ -114,7 +124,7 @@ git add \
 	$(find lib/symbioticpy/clang -name '*.py')\
 	$(find lib/symbioticpy/clang -name '*.so')\
 	lib/symbioticpy/libclang-*dist-info \
-	LICENSE.txt README.md
+	*LICENSE.txt README.md smoketest*
 	#$LLVM_PREFIX/include/stddef.h \
 
 git commit -m "Create Symbiotic distribution `date`" || true
