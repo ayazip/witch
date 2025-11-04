@@ -10,13 +10,13 @@ def get_versions():
 
     # the numbers must be separated by '-, otherwise it will
     # break the tool-module in benchexec
-    VERSION='10.0.0-rc1'
+    VERSION='4.0.0-rc1'
     try:
         from . versions import versions, build_types
         from . versions import llvm_version as LLVM_VERSION
     except ImportError:
         versions = {
-            'symbiotic' : VERSION
+            'witch' : VERSION
         }
         build_types = {
         }

@@ -1,0 +1,36 @@
+- content:
+  - segment:
+    - waypoint:
+        action: follow
+        constraint:
+          format: ext_c_expression
+          value: \result == 1929379995
+        location:
+          column: 32
+          file_name: byte_add_1-2.i
+          line: 126
+        type: function_return
+  - segment:
+    - waypoint:
+        action: follow
+        location:
+          column: 5
+          file_name: byte_add_1-2.i
+          line: 116
+        type: target
+  entry_type: violation_sequence
+  metadata:
+    creation_time: '2025-11-03T20:09:29Z'
+    format_version: '2.1'
+    producer:
+      name: symbiotic
+      version: 10.0.0-rc1
+    task:
+      data_model: LP64
+      input_file_hashes:
+        byte_add_1-2.i: db53fe9124e215e75c7f288cadf12df33daef67c04c75ea6ca77bc804670a99c
+      input_files:
+      - byte_add_1-2.i
+      language: C
+      specification: CHECK( init(main()), LTL(G ! overflow) )
+    uuid: b84ffb96-5e7a-4ffa-9ced-c8e99c81a2fa
