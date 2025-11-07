@@ -1,8 +1,6 @@
 #include <stdio.h>
 extern _Bool __symbiotic_nondet__Bool(void);
-
-extern void klee_warning_once(const char *);
-void klee_silent_exit(int) __attribute__((noreturn));
+extern unsigned char __symbiotic_nondet_uchar(void);
 
 int fgetc(FILE *f) {
 	// model failure
