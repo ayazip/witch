@@ -930,6 +930,7 @@ class SymbioticCC(object):
         program_transformed =  os.path.basename(self.sources[0])
         witness_transformed =  os.path.basename(self.options.witness_check_file)
         transformer = ValidationTransformer(self.sources[0], self.options.witness_check_file, program_transformed, witness_transformed)
+        transformer.check_all_locations = self.options.check_all_locations
         transformer.transform()
 
         if self.options.guide_only:

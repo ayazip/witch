@@ -2,6 +2,7 @@ import sys
 import clang.cindex
 import yaml
 from ..utils import err
+from ..utils.utils import print_stdout
 
 
 class ValidationTransformer:
@@ -13,6 +14,9 @@ class ValidationTransformer:
         self.out_witness = out_witness
 
         self.first_decl = None      # line number of the first declaration
+
+        self.check_all_locations = False
+        self.bad_segments = []
 
 
         with open(self.witness_file, 'r') as file:
@@ -252,13 +256,13 @@ class ValidationTransformer:
 
                 if waypoint['type'] == 'function_return' or waypoint['type'] == 'function_enter':
                     if self._calls[line, col] is None:
-                        sys.exit('Invalid location for function call or return: {},{}'.format(line, col))
+                        self.handle_invalid_location(s_index, 'Invalid location for function call or return: {},{}'.format(line, col))
 
                     waypoint['location']['line'], waypoint['location']['column'] = self._calls[line, col]
 
                 if waypoint['type'] == 'target':
                     if self._target[line, col] is None:
-                        sys.exit('Invalid location for target: {},{}'.format(line, col))
+                        self.handle_invalid_location(s_index, 'Invalid location for target: {},{}'.format(line, col))
 
                     waypoint['location']['column'] = self._target[line, col][0][1]
                     waypoint['location2'] = {}
@@ -266,7 +270,7 @@ class ValidationTransformer:
 
                 if waypoint['type'] == 'assumption':
                     if not self._assumptions[line, col]:
-                        sys.exit('Invalid location for assumption: {},{}'.format(line, col))
+                        self.handle_invalid_location(s_index, 'Invalid location for assumption: {},{}'.format(line, col))
 
                     start, end, bracket = self._assumptions[line, col]
 
@@ -286,7 +290,7 @@ class ValidationTransformer:
                         ctrl_expr_start, ctrl_expr_end, column = self._switches[line, col]
                         fun = '__VALIDATOR_switch'
                     else:
-                        sys.exit('Invalid location for branching: {},{}'.format(line, col))
+                        self.handle_invalid_location(s_index, 'Invalid location for branching: {},{}'.format(line, col))
 
                     if col == 0:
                         waypoint['location']['column'] = column
@@ -302,6 +306,9 @@ class ValidationTransformer:
                         conditions_covered.add(loc)
 
             s_index += 1
+
+        if self.check_all_locations and len(self.bad_segments) > 0:
+            sys.exit("Found invalid locations in segments {}".format(self.bad_segments))
 
         add_lines = 0
         if self.program_file.endswith('.i'):
@@ -388,6 +395,12 @@ class ValidationTransformer:
 
         return None
 
+    def handle_invalid_location(self, segment, message):
+        if not self.check_all_locations:
+            sys.exit(message)
+        print_stdout(message)
+        self.bad_segments.append(segment + 1) # more user friendly to index from 1
+
 
 def create_assumption(constraint, segment, follow, bracket):
     prefix = '{' if bracket else ''
@@ -419,7 +432,6 @@ def is_statement(parent, child_index, child):
         return True
 
     return False
-
 
 def witch_assert(cond, message):
     if not cond:
