@@ -399,7 +399,7 @@ class ValidationTransformer:
         if not self.check_all_locations:
             sys.exit(message)
         print_stdout(message)
-        self.bad_segments.append(segment + 1) # more user friendly to index from 1
+        self.bad_segments.append(segment)
 
 
 def create_assumption(constraint, segment, follow, bracket):
