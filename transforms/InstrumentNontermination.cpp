@@ -435,6 +435,12 @@ bool InstrumentNontermination::instrumentEmptyLoop(Loop *L) {
 
   assert(_fail);
   for (auto I = pred_begin(header), E = pred_end(header); I != E; ++I) {
+    // Insert a failed assertion at the end of the loop.
+    // This avoids reporting loops like
+    // while (always_false()) {}
+    // as nonterminating.
+    if (!L->contains(*I))
+      continue;
     auto *term = (*I)->getTerminator();
     auto *CI = CallInst::Create(_fail);
     CloneMetadata(term, CI);
