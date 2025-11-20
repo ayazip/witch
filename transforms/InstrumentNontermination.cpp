@@ -260,10 +260,10 @@ bool InstrumentNontermination::instrumentLoop(Loop *L, const std::set<llvm::Valu
 
     if (insertHeader) {
         auto *CI = CallInst::Create(getHeaderFun(M));
-        // copy the location from terminator, so that we have
+        // copy the location from the instruction so that we have
         // the right debug loc
-        CloneMetadata(header->getTerminator(), CI);
-        CI->insertBefore(header->getTerminator());
+        CloneMetadata(where, CI);
+        CI->insertBefore(where);
     }
   }
 
