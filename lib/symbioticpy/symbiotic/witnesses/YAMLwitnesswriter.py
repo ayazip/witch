@@ -20,7 +20,7 @@ def get_hash(source):
     return hsh.hexdigest()
 
 class YAMLWriter(object):
-    def __init__(self, source, prps, is32bit, is_correctness_wit, saveto, shift = None):
+    def __init__(self, source, prps, is32bit, is_correctness_wit, saveto, path, shift = None):
         self._source = source
         self._relsource = relpath(source, dirname(saveto))
         self._prps = prps
@@ -33,6 +33,9 @@ class YAMLWriter(object):
         self.calls = dict()
         self.witness = []
         self.shift = shift
+
+        self.parse(path)
+
 
     def add_metadata(self):
         witness = {}
@@ -61,7 +64,6 @@ class YAMLWriter(object):
         @param path         the .waypoints file
         """
 
-        self.parse(path)
         assert self.errorLoc or self._prps.termination(), "Failed generating a YAML witness"
 
         self.add_metadata()
@@ -188,11 +190,12 @@ class YAMLWriter(object):
                     self.errorLoc = tuple(map(int, line.strip('\n').split(':')[2:]))
                     break
                 call = line.strip('\n').split(':')
+                name = call[0]
                 line = int(call[1])
                 col = int(call[2])
                 value = call[3]
                 cycle = (len(call) == 5) # is there the cycle flag?
-                self.test.append((line, col, value, cycle))
+                self.test.append((line, col, value, cycle, name))
                 self.calls[(line, col)] = None
 
         # No need for this if we have cycle waypoints
@@ -216,7 +219,10 @@ class YAMLWriter(object):
                         og_column -= self.shift[og_line][col]
                     else:
                         break
-            tmp_test[i] = (og_line, og_column, self.test[i][2], self.test[i][3])
+            tmp_test[i] = (og_line, og_column,
+                           self.test[i][2],
+                           self.test[i][3],
+                           self.test[i][4])
             new_calls[(og_line, og_column)] = None
         self.test = tmp_test
         self.calls = new_calls
@@ -233,7 +239,50 @@ class YAMLWriter(object):
 
         self.errorLoc = og_line, og_column
 
+    def generate_harness(self, output):
 
+        return_types = [('bool', '_Bool'),
+                        ('char', 'char'),
+                        ('int', 'int'),
+                        ('long', 'long'),
+                        ('longlong', 'long long'),
+                        ('short', 'short'),
+                        ('size_t', 'size_t'),
+                        ('uchar', 'unsigned char'),
+                        ('uint', 'unsigned int'),
+                        ('ulong', 'unsigned long'),
+                        ('ulonglong', 'unsigned long long'),
+                        ('ushort', 'unsigned short'),
+                        ('unsigned', 'unsigned')]
+
+        returns = { '__VERIFIER_nondet_{}'.format(t[0]) : (t[1], []) for t in return_types }
+
+        for item in self.test:
+            if item[4] in returns.keys():
+                returns[item[4]][1].append(item[2])
+
+        harness_lines = ['#include <stddef.h>']
+        for function_name in returns.keys():
+            return_type = returns[function_name][0]
+            values = returns[function_name][1]
+
+            harness_lines.append('{t} {name}(){{'.format(name=function_name, t=return_type))
+            harness_lines.append('    static unsigned int index = 0;')
+            harness_lines.append('    {t} retval = 0;'.format(t=return_type))
+            if values:
+                harness_lines.append('    switch (index) {')
+                for i in range(len(values)):
+                    harness_lines.append('    case {index}: retval = {value}; break;'
+                                         .format(index=i, value=values[i]))
+                harness_lines.append('    }')
+
+            harness_lines.append('    ++index;')
+            harness_lines.append('    return retval;')
+            harness_lines.append('}')
+            harness_lines.append('\n')
+
+        with open(output, 'w') as harness_file:
+            harness_file.writelines(s + '\n' for s in harness_lines)
 
 def _get_recurring_location(node, error_loc):
     n_start = node.extent.start

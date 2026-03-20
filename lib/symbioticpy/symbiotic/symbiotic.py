@@ -153,6 +153,9 @@ class Symbiotic(object):
         if not options.nowitness and hasattr(tool, "generate_witness"):
             tool.generate_witness(cc.curfile, self.sources, has_error)
 
+        if options.harness_output and hasattr(tool, "generate_harness"):
+            tool.generate_harness(cc.curfile, self.sources, has_error)
+
         return res
 
     def run(self):

@@ -134,6 +134,8 @@ class SymbioticTool(KleeBase):
         if opts.guide_only:
             cmd.append('-guide-only=true')
             cmd.append('-write-waypoints')
+        elif opts.harness_output:
+            cmd.append('-write-waypoints')
 
         return cmd + options + tasks + self._options.argv + [self._options.witness_check_file]
 
@@ -259,6 +261,28 @@ class SymbioticTool(KleeBase):
 
         assert saveto is not None
         gen = YAMLWriter(self.og_file, self._options.property,
-                         self._options.is32bit, not has_error, saveto, self.shifted)
-        gen.generate_violation_witness(test)
+                         self._options.is32bit, not has_error, saveto, test, self.shifted)
+        if self._options.harness_output:
+            gen.generate_harness(self._options.harness_output)
+
+        gen.generate_violation_witness()
         gen.write(saveto)
+
+    def generate_harness(self, llvmfile, sources, has_error):
+        saveto = self._options.harness_output
+        if not self.generate_harness or not has_error:
+            return
+
+        assert saveto is not None
+        print('Generating harness: {0}'.format(saveto))
+
+        if self._options.property.termination():
+            print('Harness generation not supported for termination.')
+            return
+
+        pth = get_ktest(join(dirname(llvmfile), 'klee-last'))
+        test = '{0}.waypoints'.format(splitext(pth)[0])
+
+        gen = YAMLWriter(self.og_file, self._options.property,
+                         self._options.is32bit, not has_error, saveto, test, self.shifted)
+        gen.generate_harness(self._options.harness_output)

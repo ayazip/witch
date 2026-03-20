@@ -105,6 +105,7 @@ class SymbioticOptions(object):
         self.witness_check_file = None
         self.guide_only = False
         self.check_all_locations = False
+        self.harness_output = None
 
         # These were globals previously, move them into stand-alone argparse
         # parser once we switch to argparse
@@ -256,7 +257,8 @@ def parse_command_line():
                                     'search-include-paths', 'replay-error', 'cc',
                                     'report=', 'no-replay-error',
                                     'unroll=', 'full-instrumentation', 'target-settings=',
-                                    'witness-check=', 'guide-only', 'check-all-locations', 'graphml-witness='])
+                                    'witness-check=', 'guide-only', 'check-all-locations',
+                                    'graphml-witness=', 'harness='])
 
                                    # add klee-params
     except getopt.GetoptError as e:
@@ -458,6 +460,9 @@ def parse_command_line():
             options.full_instrumentation = True
         elif opt == '--test-suite':
             options.testsuite_output = abspath(arg)
+        elif opt == '--harness':
+            options.harness_output = abspath(expanduser(arg))
+            dbg('Harness will be stored to {0}'.format(arg))
 
     # check conflicts
     if options.require_slicer and options.noslice:
