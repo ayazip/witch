@@ -10,6 +10,11 @@ DG_VERSION=`git rev-parse HEAD`
 DG_BUILD_TYPE=$(grep 'CMAKE_BUILD_TYPE[:=]' CMakeCache.txt | sed 's@.*=\(.*\)@\1@')
 popd
 
+pushd sbt-slicer/build-${LLVM_VERSION} || exit 1
+SBT_SLICER_VERSION=`git rev-parse HEAD`
+SBT_SLICER_BUILD_TYPE=$(grep 'CMAKE_BUILD_TYPE[:=]' CMakeCache.txt | sed 's@.*=\(.*\)@\1@')
+popd
+
 pushd sbt-instrumentation/build-${LLVM_VERSION} || exit 1
 INSTRUMENTATION_VERSION=`git rev-parse HEAD`
 INSTRUMENTATION_BUILD_TYPE=$(grep 'CMAKE_BUILD_TYPE[:=]' CMakeCache.txt | sed 's@.*=\(.*\)@\1@')
@@ -35,6 +40,7 @@ echo "" >> $VERSFILE
 echo "versions = {" >> $VERSFILE
 echo -e "\t'symbiotic' : '$SYMBIOTIC_VERSION'," >> $VERSFILE
 echo -e "\t'dg' : '$DG_VERSION'," >> $VERSFILE
+echo -e "\t'sbt-slicer' : '$SBT_SLICER_VERSION'," >> $VERSFILE
 echo -e "\t'witch-klee' : '$WITCH_KLEE_VERSION'," >> $VERSFILE
 echo -e "\t'sbt-instrumentation' : '$INSTRUMENTATION_VERSION'," >> $VERSFILE
 
@@ -49,6 +55,7 @@ echo -e "llvm_version = '${LLVM_VERSION}'\n" >> $VERSFILE
 echo "build_types = {" >> $VERSFILE
 echo -e "\t'symbiotic' : '$SYMBIOTIC_BUILD_TYPE'," >> $VERSFILE
 echo -e "\t'dg' : '$DG_BUILD_TYPE'," >> $VERSFILE
+echo -e "\t'sbt-slicer' : '$SBT_SLICER_BUILD_TYPE'," >> $VERSFILE
 echo -e "\t'witch-klee' : '$WITCH_KLEE_BUILD_TYPE'," >> $VERSFILE
 echo -e "\t'sbt-instrumentation' : '$INSTRUMENTATION_BUILD_TYPE'," >> $VERSFILE
 

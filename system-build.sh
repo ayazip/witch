@@ -34,7 +34,7 @@ ABS_SRCDIR=`abspath $SRCDIR`
 
 usage()
 {	echo USAGE
-	echo "$0 [archive | full-archive] [update] [scripts | witch-klee | bin] OPTS"
+	echo "$0 [archive | full-archive] [update] [scripts | witch-klee | bin | slicer] OPTS"
 	echo "" # new line
 	echo -e "build-type=TYPE    - set Release/Debug build"
 	echo -e "llvm-config        - use the given llvm-config binary"
@@ -62,6 +62,7 @@ ARCHIVE="no"
 FULL_ARCHIVE="no"
 ARCHIVE_PREFIX="witch/"
 BUILD_WITCH_KLEE="yes"
+BUILD_SLICER="yes"
 LLVM_CONFIG=
 
 while [ $# -gt 0 ]; do
@@ -79,6 +80,9 @@ while [ $# -gt 0 ]; do
 		;;
 		'witch-klee')
 			BUILD_WITCH_KLEE=yes
+		;;
+		'slicer')
+			BUILD_SLICER=yes
 		;;
 		'update')
 			UPDATE=1
@@ -338,6 +342,39 @@ fi
 if [ "`pwd`" != $ABS_SRCDIR ]; then
 	exitmsg "Inconsistency in the build script, should be in $ABS_SRCDIR"
 fi
+
+######################################################################
+#   sbt-slicer
+######################################################################
+PHASE="building sbt-slicer"
+if [ "$BUILD_SLICER" = "yes" ]; then
+	# initialize instrumentation module if not done yet
+	if [  "x$UPDATE" = "x1" -o -z "$(ls -A $SRCDIR/sbt-slicer)" ]; then
+		git_submodule_init
+	fi
+	pushd "$SRCDIR/sbt-slicer" || exitmsg "Cloning failed"
+	mkdir -p build-${LLVM_VERSION} || exitmsg "error"
+	pushd build-${LLVM_VERSION} || exitmsg "error"
+	if [ ! -d CMakeFiles ]; then
+		cmake .. \
+			-DCMAKE_BUILD_TYPE=${BUILD_TYPE}\
+			-DCMAKE_INSTALL_LIBDIR:PATH=lib \
+			-DCMAKE_INSTALL_FULL_DATADIR:PATH=$LLVM_PREFIX/share \
+			-DLLVM_DIR="$LLVM_DIR" \
+			-DDG_PATH=$ABS_SRCDIR/dg \
+			-DLLVM_LINK_DYLIB="$LLVM_DYLIB" \
+			-DCMAKE_INSTALL_PREFIX=$LLVM_PREFIX \
+			-DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' \
+			|| clean_and_exit 1 "git"
+	fi
+	(build && make install) || exitmsg "Failed building sbt-slicer"
+	popd
+	popd
+fi
+if [ "`pwd`" != $ABS_SRCDIR ]; then
+	exitmsg "Inconsistency in the build script, should be in $ABS_SRCDIR"
+fi
+
 
 ######################################################################
 #   Witch-KLEE

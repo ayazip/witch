@@ -54,7 +54,9 @@ done
 
 cd $PREFIX || exitmsg "Whoot? prefix directory not found! This is a BUG, sir..."
 
-BINARIES="$LLVM_PREFIX/bin/sbt-instr"
+BINARIES="$LLVM_PREFIX/bin/sbt-slicer \
+	  $LLVM_PREFIX/bin/llvm-slicer \
+	  $LLVM_PREFIX/bin/sbt-instr"
 
 for B in $LLVM_TOOLS; do
 	BINARIES="$LLVM_PREFIX/bin/${B} $BINARIES"
