@@ -34,7 +34,7 @@ ABS_SRCDIR=`abspath $SRCDIR`
 
 usage()
 {
-	echo "$0 [shell] [no-llvm] [update] [archive | full-archive] [scripts | witch-klee | bin] OPTS"
+	echo "$0 [shell] [no-llvm] [update] [archive | full-archive] [scripts | witch-klee | slicer | bin] OPTS"
 	echo "" # new line
 	echo -e "shell    - run shell with environment set"
 	echo -e "no-llvm  - skip compiling llvm"
@@ -48,7 +48,7 @@ usage()
 	echo -e "archive            - create a zip file with symbiotic"
 	echo -e "full-archive       - create a zip file with symbiotic and add non-standard dependencies"
 	echo "" # new line
-	echo -e "scripts"
+	echo -e "slicer, scripts"
 	echo -e "witch-klee"
 	echo -e "bin     - run compilation _from_ this point"
 	echo "" # new line
@@ -90,7 +90,7 @@ WITH_LLVMCBE='no'
 BUILD_Z3='no'
 
 BUILD_WITCH_KLEE="yes"
-
+BUILD_SLICER="yes"
 
 
 HAVE_32_BIT_LIBS=$(if check_32_bit; then echo "yes"; else echo "no"; fi)
@@ -118,6 +118,9 @@ while [ $# -gt 0 ]; do
 		;;
 		'no-llvm')
 			NO_LLVM=1
+		;;
+		'slicer')
+			BUILD_SLICER="yes"
 		;;
 		'witch-klee')
 			BUILD_WITCH_KLEE="yes"
@@ -527,6 +530,40 @@ if [ $FROM -le 1 ]; then
 	popd
 fi
 
+if [ "`pwd`" != $ABS_SRCDIR ]; then
+	exitmsg "Inconsistency in the build script, should be in $ABS_SRCDIR"
+fi
+
+###################
+#   sbt-slicer
+######################################################################
+PHASE="building sbt-slicer"
+if [ "$BUILD_SLICER" = "yes" ]; then
+	# initialize instrumentation module if not done yet
+	if [  "x$UPDATE" = "x1" -o -z "$(ls -A $SRCDIR/sbt-slicer)" ]; then
+		git_submodule_init
+	fi
+	pushd "$SRCDIR/sbt-slicer" || exitmsg "Cloning failed"
+	mkdir -p build-${LLVM_VERSION} || exitmsg "error"
+	pushd build-${LLVM_VERSION} || exitmsg "error"
+	if [ ! -d CMakeFiles ]; then
+		cmake .. \
+			-DCMAKE_BUILD_TYPE=${BUILD_TYPE}\
+			-DCMAKE_INSTALL_LIBDIR:PATH=lib \
+			-DCMAKE_INSTALL_FULL_DATADIR:PATH=$LLVM_PREFIX/share \
+			-DLLVM_SRC_PATH="$LLVM_SRC_PATH" \
+			-DLLVM_BUILD_PATH="$LLVM_BUILD_PATH" \
+			-DLLVM_DIR=$LLVM_DIR \
+			-DLLVM_LINK_DYLIB="$LLVM_DYLIB" \
+			-DDG_PATH=$ABS_SRCDIR/dg \
+			-DCMAKE_INSTALL_PREFIX=$LLVM_PREFIX \
+			-DCMAKE_INSTALL_RPATH="\$ORIGIN/../lib" \
+			|| clean_and_exit 1 "git"
+	fi
+	(build && make install) || exitmsg  "Building and installing sbt-slicer"
+	popd
+	popd
+fi
 if [ "`pwd`" != $ABS_SRCDIR ]; then
 	exitmsg "Inconsistency in the build script, should be in $ABS_SRCDIR"
 fi
