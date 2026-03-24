@@ -248,8 +248,8 @@ class SymbioticTool(KleeBase):
         criteria and opts is a list of options
         """
 
-        assert self._options.property.unreachcall(), "Slicing only supported for unreach-call"
-        return self._options.property.getcalls() + ["__VALIDATOR_branch","__VALIDATOR_switch","__VALIDATOR_assume","__VALIDATOR_segment"], []
+        assert self._options.property.unreachcall(), 'Slicing only supported for unreach-call'
+        return self._options.property.getcalls() + ['__VALIDATOR_branch','__VALIDATOR_switch','__VALIDATOR_assume','__VALIDATOR_segment'], []
 
         return ([],[])
 
