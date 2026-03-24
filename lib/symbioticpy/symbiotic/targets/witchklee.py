@@ -242,6 +242,18 @@ class SymbioticTool(KleeBase):
 
         return passes
 
+    def slicer_options(self):
+        """
+        Returns tuple (c, opts) where c is a list with slicing
+        criteria and opts is a list of options
+        """
+
+        assert self._options.property.unreachcall(), "Slicing only supported for unreach-call"
+        return self._options.property.getcalls(),\
+               ['-sc', "|###__VALIDATOR_branch();|###__VALIDATOR_switch();|###__VALIDATOR_assume();|###__VALIDATOR_segment();"]
+
+        return ([],[])
+
     def generate_witness(self, llvmfile, sources, has_error):
         saveto = self._options.witness_output
         if not self._generate_witness or not has_error:

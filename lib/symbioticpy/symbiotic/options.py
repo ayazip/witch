@@ -133,10 +133,9 @@ def set_witness_check(opts):
     opts.search_include_paths = False
     opts.linkundef.append('svcomp')
     opts.CFLAGS.append("-fbracket-depth=2048")
-    opts.replay_error = False
+    opts.replay_error = not opts.noslice
     opts.tool_name='witch-klee'
     opts.exit_on_error = False
-    opts.noslice = True
     opts.report_type.append('sv-comp')
     opts.no_instrument = True
     opts.no_optimize = True

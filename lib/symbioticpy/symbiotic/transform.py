@@ -936,6 +936,10 @@ class SymbioticCC(object):
         if self.options.guide_only:
             self._tool.shifted = transformer._shift
 
+        if not self.options.property.unreachcall() or not transformer.slicing_allowed:
+            print("Slicing turned off")
+            self.options.noslice=True
+
         self.options.witness_check_file = witness_transformed
         self.sources = [program_transformed]
 

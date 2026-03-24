@@ -18,6 +18,7 @@ class ValidationTransformer:
         self.check_all_locations = False
         self.bad_segments = []
 
+        self.slicing_allowed=True
 
         with open(self.witness_file, 'r') as file:
             self.witness = yaml.safe_load(file)
@@ -85,6 +86,7 @@ class ValidationTransformer:
                 map = None
                 if waypoint['type'] == 'function_return' or waypoint['type'] == 'function_enter':
                     map = self._calls
+                    self.slicing_allowed=False
                 if waypoint['type'] == 'assumption':
                     map = self._assumptions
                 if waypoint['type'] == 'branching':
