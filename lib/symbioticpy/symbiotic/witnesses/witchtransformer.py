@@ -308,7 +308,8 @@ class ValidationTransformer:
             s_index += 1
 
         if self.check_all_locations and len(self.bad_segments) > 0:
-            sys.exit("Found invalid locations in segments {}".format(self.bad_segments))
+            print_stdout("INFO: Found invalid locations in segments {}".format(self.bad_segments))
+            sys.exit()
 
         add_lines = 0
         if self.program_file.endswith('.i'):
@@ -399,7 +400,7 @@ class ValidationTransformer:
         if not self.check_all_locations:
             sys.exit(message)
         print_stdout(message)
-        self.bad_segments.append(segment + 1) # more user friendly to index from 1
+        self.bad_segments.append(segment)
 
 
 def create_assumption(constraint, segment, follow, bracket):
