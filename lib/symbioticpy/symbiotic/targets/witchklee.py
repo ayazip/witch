@@ -249,7 +249,7 @@ class SymbioticTool(KleeBase):
         """
 
         assert self._options.property.unreachcall(), 'Slicing only supported for unreach-call'
-        return self._options.property.getcalls() + ['__VALIDATOR_branch','__VALIDATOR_switch','__VALIDATOR_assume','__VALIDATOR_segment'], []
+        return self._options.property.getcalls(), ['-2c', '__VALIDATOR_branch,__VALIDATOR_switch,__VALIDATOR_assume,__VALIDATOR_segment']
 
         return ([],[])
 
