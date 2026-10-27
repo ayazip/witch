@@ -128,7 +128,7 @@ def set_witness_check(opts):
     opts.sv_comp = True
     opts.nowitness = not opts.guide_only
     opts.no_integrity_check = True
-    opts.malloc_never_fails = True
+    opts.malloc_never_fails = False
     opts.explicit_symbolic = True
     opts.search_include_paths = False
     opts.linkundef.append('svcomp')
