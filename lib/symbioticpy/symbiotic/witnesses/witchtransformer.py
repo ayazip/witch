@@ -257,12 +257,16 @@ class ValidationTransformer:
                 if waypoint['type'] == 'function_return' or waypoint['type'] == 'function_enter':
                     if self._calls[line, col] is None:
                         self.handle_invalid_location(s_index, 'Invalid location for function call or return: {},{}'.format(line, col))
+                        s_index += 1
+                        continue
 
                     waypoint['location']['line'], waypoint['location']['column'] = self._calls[line, col]
 
                 if waypoint['type'] == 'target':
                     if self._target[line, col] is None:
                         self.handle_invalid_location(s_index, 'Invalid location for target: {},{}'.format(line, col))
+                        s_index += 1
+                        continue
 
                     waypoint['location']['column'] = self._target[line, col][0][1]
                     waypoint['location2'] = {}
@@ -271,6 +275,8 @@ class ValidationTransformer:
                 if waypoint['type'] == 'assumption':
                     if not self._assumptions[line, col]:
                         self.handle_invalid_location(s_index, 'Invalid location for assumption: {},{}'.format(line, col))
+                        s_index += 1
+                        continue
 
                     start, end, bracket = self._assumptions[line, col]
 
@@ -291,6 +297,8 @@ class ValidationTransformer:
                         fun = '__VALIDATOR_switch'
                     else:
                         self.handle_invalid_location(s_index, 'Invalid location for branching: {},{}'.format(line, col))
+                        s_index += 1
+                        continue
 
                     if col == 0:
                         waypoint['location']['column'] = column
