@@ -376,12 +376,14 @@ class ValidationTransformer:
 
         # Shift end location of target
         target = content[-1]['segment'][-1]['waypoint']
-        if 'location2' in target and target['location2']['line'] in self._shift.keys():
-            add = 0
-            for col in self._shift[waypoint['location2']['line']]:
-                if target['location2']['column'] >= col:
-                    add += self._shift[target['location2']['line']][col]
-                target['location2']['column'] += add
+        if 'location2' in target:
+            if target['location2']['line'] in self._shift.keys():
+                add = 0
+                for col in self._shift[waypoint['location2']['line']]:
+                    if target['location2']['column'] >= col:
+                        add += self._shift[target['location2']['line']][col]
+                    target['location2']['column'] += add
+            waypoint['location2']['line'] += add_lines
 
         return content
 
