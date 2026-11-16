@@ -117,6 +117,7 @@ git add \
 	include/symbiotic.h \
 	include/symbiotic-size_t.h \
         include/witch.h \
+	$LLVM_PREFIX/lib/clang/*/include/*.h \
 	$(find lib -name '*.c')\
 	$(find . -name '*.bc')\
 	properties/* \
