@@ -20,7 +20,7 @@ limitations under the License.
 """
 
 import re
-from os.path import join, splitext, dirname
+from os.path import join, splitext, dirname, basename
 from symbiotic.witnesses.YAMLwitnesswriter import YAMLWriter
 
 try:
@@ -130,6 +130,10 @@ class SymbioticTool(KleeBase):
 
         if self._options.witness_check_file is None:
             raise SymbioticException("Witch-KLEE needs a witness (--witness-check=<witness>)")
+
+        if opts.sv_comp and len(opts.sources) == 1:
+            cmd.append('-waypoints-in-file={}'.format(basename(opts.sources[0])))
+
 
         if opts.guide_only:
             cmd.append('-guide-only=true')
