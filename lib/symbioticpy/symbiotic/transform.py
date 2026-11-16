@@ -936,6 +936,8 @@ class SymbioticCC(object):
         if self.options.guide_only:
             self._tool.shifted = transformer._shift
 
+        self.options.no_refute = transformer.do_not_refute
+
         self.options.witness_check_file = witness_transformed
         self.sources = [program_transformed]
 

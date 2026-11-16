@@ -18,6 +18,8 @@ class ValidationTransformer:
         self.check_all_locations = False
         self.bad_segments = []
 
+        self.do_not_refute = False
+
 
         with open(self.witness_file, 'r') as file:
             self.witness = yaml.safe_load(file)
@@ -38,6 +40,7 @@ class ValidationTransformer:
         self._shift = {}  # locations that were shifted to the right
 
         self.check_witness_structure()
+        self.check_supported()
 
     def check_witness_structure(self):
         # basic syntax checks
@@ -47,6 +50,25 @@ class ValidationTransformer:
         witch_assert('entry_type' in self.witness[0], 'Missing witness entry_type!')
         witch_assert(self.witness[0]['entry_type'] == 'violation_sequence', 'Invalid entry type!')
         witch_assert(len(self.witness[0]['content']) >= 1, 'Invalid witness syntax!')
+
+    def check_supported(self):
+        version = self.witness[0]['metadata']['format_version']
+        prop = self.witness[0]['metadata']['task']['specification']
+        if version in ['2.0', '2.1', '2.2']:
+            if "valid-memtrack" in prop:
+                print_stdout("Warning: Valid memtrack is not supported by this witness format version. Not considering this property.")
+            # this is fully supported, just check that it is not a property that is not supported
+            #by the format
+            witch_assert("valid-memcleanup" not in prop, "Format version does not support valid-memcleanup")
+            return
+        if version in ['2.3', '2.4']:
+            if "valid-memtrack" in prop:
+                print_stdout("Warning: Valid memtrack is currently unsupported.")
+                self.do_not_refute = True
+            if "valid-memcleanup" in self.witness[0]['metadata']['task']['specification']:
+                err("Valid-memcleanup is currently unsupported.")
+            return
+        err("Unsupported format version.")
 
     def _get_witness_locations(self):
         # collect relevant program locations and their types and check basic syntax

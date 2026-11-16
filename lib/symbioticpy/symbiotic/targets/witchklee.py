@@ -149,6 +149,7 @@ class SymbioticTool(KleeBase):
 
         parsing_failed = None
         unknown = False
+
         for line in output:
             if b'Parsing failed' in line:
                 parsing_failed = line.strip().split(b':')[-1].strip().decode('utf-8')
@@ -179,8 +180,10 @@ class SymbioticTool(KleeBase):
 
             if b'may not be confirmed' in line:
                 unknown = True
+
             if b'Follow waypoint of segment' in line:
                 print_stdout(line.decode('utf-8'))
+
         if returncode != 0:
             if parsing_failed:
                 return f'{result.RESULT_ERROR} ({parsing_failed})'
@@ -190,6 +193,9 @@ class SymbioticTool(KleeBase):
             for (key, pattern) in self._patterns:
                 if pattern.match(str(line)):
                     return "{0} ({1})".format(result.RESULT_UNKNOWN, " ".join(key))
+
+        if self._options.no_refute:
+            unknown = True
 
         return result.RESULT_UNKNOWN if unknown else result.RESULT_TRUE_PROP
 

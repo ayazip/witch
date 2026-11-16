@@ -105,6 +105,7 @@ class SymbioticOptions(object):
         self.witness_check_file = None
         self.guide_only = False
         self.check_all_locations = False
+        self.no_refute = False
 
         # These were globals previously, move them into stand-alone argparse
         # parser once we switch to argparse
