@@ -90,6 +90,9 @@ class ValidationTransformer:
                 witch_assert('type' in waypoint.keys(), 'Missing waypoint type!')
                 witch_assert('action' in waypoint.keys(), 'Missing waypoint action!')
 
+                if 'thread_id' in waypoint.keys() and waypoint['thread_id'] != 0:
+                    err("Concurrency is not supported!")
+
                 if waypoint['action'] == 'follow':
                     assert w == segment[-1]
 
